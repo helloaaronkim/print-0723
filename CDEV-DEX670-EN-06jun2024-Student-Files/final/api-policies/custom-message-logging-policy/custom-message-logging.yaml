@@ -1,0 +1,66 @@
+id: custom-message-logging
+name: Custom Message Logging
+supportedPoliciesVersions: '>=v1'
+description: "Creates configurable log entries.\nWarning: If the payload is used as part of the logging message or conditional expression while using non repeatable streams, the payload will be consumed by the policy."
+category: Troubleshooting
+type: system
+resourceLevelSupported: true
+standalone: true
+requiredCharacteristics: []
+gatewayCompatibility: '>=1.0.0'
+allowMultiple: true
+providedCharacteristics:
+  - Message Logging
+configuration:
+  - propertyName: message
+    name: Message
+    description: |
+      Mule expression meant for meaningful non-sensitive functional messages.
+      e.g. #['Request received from Customer with ID:' ++ (vars.customerID default 1234']
+    type: expression
+    optional: false
+
+  - propertyName: conditional
+    name: Conditional
+    description: |
+      Mule Expression to filter which messages to log.
+      e.g. #[attributes.headers['id']==1]
+    type: expression
+    optional: true
+
+  - propertyName: category
+    name: Category
+    description: |
+      Prefix in the log sentence that usually contains package + class where the log is executed. The category will be
+      org.mule.runtime.logging.policy-<policy id> plus this field value if any
+    type: string
+    optional: true
+
+  - propertyName: level
+    description: |
+      INFO, WARN, ERROR or DEBUG
+    name: Level
+    options:
+    - name: INFO
+      value: INFO
+    - name: WARN
+      value: WARN
+    - name: ERROR
+      value: ERROR
+    - name: DEBUG
+      value: DEBUG
+    type: radio
+    optional: false
+    defaultValue: INFO
+
+  - propertyName: beforeAPI
+    name: Before Calling API
+    type: boolean
+    optional: false
+    defaultValue: true
+
+  - propertyName: afterAPI
+    name: After Calling API
+    type: boolean
+    optional: false
+    defaultValue: false

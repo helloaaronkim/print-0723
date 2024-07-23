@@ -1,0 +1,43 @@
+###
+# #%L
+# MuleSoft Training - Anypoint Platform Development: Level 2
+# %%
+# Copyright (C) 2019 - 2021 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+# %%
+# The software in this package is published under the terms of the
+# Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+# a copy of which has been included with this distribution in the LICENSE.txt file.
+# #L%
+###
+# Autodiscovery API ID in API Manager in this environment
+api:
+  id: "15620141"
+  callback:
+   base:   "https://tngaa-flights-management-sapi-test-37i9gq.rajrd4-2.usa-e1.cloudhub.io" 
+
+tls.keystore:
+  type:  "pkcs12"
+  path:  "certs/${project.name}-test.p12" # replaced through Maven resource filtering
+  alias: "server"
+
+flights:
+  responseTimeoutMillis:   "2000"
+  alive: "https://tngaa-flights-management-test-37i9gq.d5n5q8.usa-e1.cloudhub.io/alive"
+  soap:
+    base:  "https://tngaa-flights-management-test.nonprod-internalps.anyair.net"
+  keystore:
+    type:  "pkcs12"
+    path:  "certs/clients-to-nonprod-internalps.p12"
+    alias: "client"
+
+vm:
+  reconnectIntervalMillis: "1000"
+  timeoutMillis:           "5000"
+  maxRedeliveryCount:      "3"
+  cancelNotif:
+    q.size:   "100"
+    dlq.size: "1000"
+
+anypoint.mq:
+  url:                     "https://mq-us-east-1.anypoint.mulesoft.com/api/v1/organizations/a63e6d25-8aaf-4512-b36d-d91b90a55c4a/environments/099fa514-1013-4078-a35f-ceb6bea34f7e"
+  exchange:                "cancelled-flights-exchg-test"

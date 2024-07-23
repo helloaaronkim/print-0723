@@ -1,0 +1,360 @@
+{
+	"info": {
+		"_postman_id": "b1b8a07a-8d9a-4bf9-9db8-e26da4ad6a47",
+		"name": "check-in-papi",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "88351"
+	},
+	"item": [
+		{
+			"name": "checkin - local",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"lastName\": \"Smith\",\n  \"numBags\": 2\n}"
+				},
+				"url": {
+					"raw": "https://localhost:8081/api/v1/tickets/PNR123/checkin",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"v1",
+						"tickets",
+						"PNR123",
+						"checkin"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "paymentApproval - local",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"payerID\": \"STJ8222K092ST\",\n  \"paymentID\": \"PAY-1AKD7482FAB9STATKO\"\n}"
+				},
+				"url": {
+					"raw": "https://localhost:8081/api/v1/tickets/PNR123/paymentApproval",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"v1",
+						"tickets",
+						"PNR123",
+						"paymentApproval"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "checkin(lastName:Smith) - cloudhub",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{cipapi_client_secret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{cipapi_client_id}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"lastName\": \"Smith\",\n  \"numBags\": 2\n}"
+				},
+				"url": {
+					"raw": "https://tngaa-check-in-papi-dev-9yj2rh.rajrd4-1.usa-e1.cloudhub.io/api/v1/tickets/PNR123/checkin",
+					"protocol": "https",
+					"host": [
+						"tngaa-check-in-papi-dev-9yj2rh",
+						"rajrd4-1",
+						"usa-e1",
+						"cloudhub",
+						"io"
+					],
+					"path": [
+						"api",
+						"v1",
+						"tickets",
+						"PNR123",
+						"checkin"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "checkin(lastName:Mule) - cloudhub",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"pm.environment.set(\"paymentID\", jsonData.paymentID);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{cipapi_client_secret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{cipapi_client_id}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"lastName\": \"Mule\",\n  \"numBags\": 2\n}"
+				},
+				"url": {
+					"raw": "https://tngaa-check-in-papi-dev-9yj2rh.rajrd4-1.usa-e1.cloudhub.io/api/v1/tickets/PNR123/checkin",
+					"protocol": "https",
+					"host": [
+						"tngaa-check-in-papi-dev-9yj2rh",
+						"rajrd4-1",
+						"usa-e1",
+						"cloudhub",
+						"io"
+					],
+					"path": [
+						"api",
+						"v1",
+						"tickets",
+						"PNR123",
+						"checkin"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "paymentApproval - cloudhub",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{cipapi_client_secret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{cipapi_client_id}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"payerID\": \"STJ8222K092ST\",\n  \"paymentID\": \"{{paymentID}}\"\n}"
+				},
+				"url": {
+					"raw": "https://tngaa-check-in-papi-dev-9yj2rh.rajrd4-1.usa-e1.cloudhub.io/api/v1/tickets/PNR123/paymentApproval",
+					"protocol": "https",
+					"host": [
+						"tngaa-check-in-papi-dev-9yj2rh",
+						"rajrd4-1",
+						"usa-e1",
+						"cloudhub",
+						"io"
+					],
+					"path": [
+						"api",
+						"v1",
+						"tickets",
+						"PNR123",
+						"paymentApproval"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ready - local",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "https://localhost:8081/ready",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"ready"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ready - cloudhub",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "https://tngaa-check-in-papi-dev-9yj2rh.rajrd4-1.usa-e1.cloudhub.io/ready",
+					"protocol": "https",
+					"host": [
+						"tngaa-check-in-papi-dev-9yj2rh",
+						"rajrd4-1",
+						"usa-e1",
+						"cloudhub",
+						"io"
+					],
+					"path": [
+						"ready"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "alive - local",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "https://localhost:8081/alive",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"alive"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "alive - cloudhub",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "https://tngaa-check-in-papi-dev-9yj2rh.rajrd4-1.usa-e1.cloudhub.io/alive",
+					"protocol": "https",
+					"host": [
+						"tngaa-check-in-papi-dev-9yj2rh",
+						"rajrd4-1",
+						"usa-e1",
+						"cloudhub",
+						"io"
+					],
+					"path": [
+						"alive"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

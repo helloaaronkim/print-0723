@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:apikit-soap="http://www.mulesoft.org/schema/mule/apikit-soap" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd  http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd   http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd  http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/apikit-soap http://www.mulesoft.org/schema/mule/apikit-soap/current/mule-apikit-soap.xsd   http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd  http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd    http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd  http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+  <!-- curl -ik https://127.0.0.1:8081/api/v1/FlightsManagementService?wsdl -->
+  <flow name="api-main">
+    <http:listener config-ref="apiHttpListenerConfig" path="/api/${api.majorVersion}/${api.wsdlService}">
+      <http:response statusCode="#[attributes.protocolHeaders.httpStatus default 200]">
+        <http:body>#[payload]</http:body>
+        <http:headers>#[attributes.protocolHeaders default {}]</http:headers>
+      </http:response>
+      <http:error-response statusCode="#[attributes.protocolHeaders.httpStatus default 500]">
+        <http:body>#[payload]</http:body>
+        <http:headers>#[attributes.protocolHeaders default {}]</http:headers>
+      </http:error-response>
+    </http:listener>
+    <!-- can't use flow-ref to delegate to router: must be here, inline -->
+    <apikit-soap:router config-ref="soapkitConfig">
+      <apikit-soap:attributes><![CDATA[#[%dw 2.0
+        output application/java
+        ---
+        {
+          headers: attributes.headers,
+          method: attributes.method,
+          queryString: attributes.queryString
+        }]]]></apikit-soap:attributes>
+    </apikit-soap:router>
+  </flow>
+  <flow name="checkIn:\soapkitConfig">
+    <logger level="INFO" message="Starting check-in" doc:name="START"/>
+    <ee:transform doc:name="Extract check-in details to JSON">
+      <ee:variables>
+        <ee:set-variable variableName="checkInDetails"><![CDATA[%dw 2.0
+          output application/java
+          ns ns0 http://flightsMgmt.sword.com/
+          var ci=payload.body.ns0#checkIn
+          ---
+          {
+            id:                uuid() as String, // generate unique ID for this check-in
+            pnr:               ci.pnr as String,
+            passengerLastName: ci.passengerLastName  as String,
+            numOfBags:         ci.numOfBags as Number
+          }]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <logger level="INFO" message="#['Received check-in details ' ++ write(vars.checkInDetails)]" doc:name="AFTER_TRANSFORM"/>
+    <os:store key="#[vars.checkInDetails.id]" objectStore="checkInsOS" doc:name="Store check-in details as JSON by UUID">
+      <os:value><![CDATA[#[write(vars.checkInDetails, 'application/json; indent=false') as String]]]></os:value>
+    </os:store>
+    <ee:transform doc:name="Create SOAP checkInResponse">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+          output application/java
+          ns soap http://schemas.xmlsoap.org/soap/envelope/
+          ns ns0 http://flightsMgmt.sword.com/
+          ---
+          {
+              body: {
+                  ns0#checkInResponse: {
+                      return: true
+                  }
+              } write "application/xml"
+          }]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <logger level="INFO" message="Ending check-in" doc:name="END"/>
+  </flow>
+  <flow name="getTicketByPNR:\soapkitConfig">
+    <logger level="INFO" message="Starting getting ticket by PNR" doc:name="START"/>
+    <ee:transform doc:name="Create SOAP getTicketByPNRResponse">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+          output application/java
+          ns soap http://schemas.xmlsoap.org/soap/envelope/
+          ns ns0 http://flightsMgmt.sword.com/
+          ---
+          {
+              body: {
+                  ns0#getTicketByPNRResponse: {
+                      return: {
+                          ticketHolderLastName: "Mule",
+                          ticketHolderPassportNo: "P3JR0BZ2OY",
+                          origin: "SFO",
+                          destination: "LAX",
+                          flightDate: "2019-02-05",
+                          flightNo: "ANY6829",
+                          boarding: "13:15:00",
+                          class: "Economy",
+                          depart: "14:30:00",
+                          gate: "4A",
+                          seat: "16C"
+                      }
+                  }
+              } write "application/xml"
+          }]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <logger level="INFO" message="Ending getting ticket by PNR" doc:name="END"/>
+  </flow>
+  <flow name="registerForCancellationNotifications:\soapkitConfig">
+    <logger level="INFO" message="Starting registering for cancellation notification" doc:name="START"/>
+    <ee:transform doc:name="Extract callbackUrl">
+      <ee:variables>
+        <ee:set-variable variableName="callbackUrl"><![CDATA[%dw 2.0
+          output application/java
+          ns ns0 http://flightsMgmt.sword.com/
+          ---
+          payload.body.ns0#registerForCancellationNotifications.callbackURL as String]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <logger level="INFO" message="#['Received callback $(vars.callbackUrl)']" doc:name="AFTER_TRANSFORM"/>
+    <set-variable variableName="encodedUrl" value="#[output application/java --- dw::core::Binaries::toBase64(vars.callbackUrl)]" doc:name="encodedUrl"/>
+    <os:store key="#[vars.encodedUrl]" objectStore="callbacksOS" doc:name="Store callback URL">
+      <os:value><![CDATA[#[vars.callbackUrl]]]></os:value>
+    </os:store>
+    <ee:transform doc:name="Create SOAP registerForCancellationNotificationsResponse">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+          output application/java
+          ns soap http://schemas.xmlsoap.org/soap/envelope/
+          ns ns0 http://flightsMgmt.sword.com/
+          ---
+          {
+              body: {
+                  ns0#registerForCancellationNotificationsResponse: null
+              } write "application/xml"
+          }]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <logger level="INFO" message="Ending registering for cancellation notification" doc:name="END"/>
+  </flow>
+  <flow name="invoke-callbacks">
+    <scheduler doc:name="Scheduler">
+      <scheduling-strategy>
+        <fixed-frequency frequency="${callbacks.intervalSeconds}" startDelay="${callbacks.intervalSeconds}" timeUnit="SECONDS"/>
+      </scheduling-strategy>
+    </scheduler>
+    <logger level="INFO" message="Starting triggering all callbacks" doc:name="START"/>
+    <os:retrieve-all target="checkIns" objectStore="checkInsOS" doc:name="Retrieve all check-ins"/>
+    <!-- workaround MULE-18412 by never passing an empty collection to foreach (would log error but otherwise do no harm) -->
+    <choice>
+      <when expression="#[not isEmpty(vars.checkIns)]">
+        <os:retrieve-all target="callbacks" objectStore="callbacksOS" doc:name="Retrieve all callbacks"/>
+        <choice>
+          <when expression="#[not isEmpty(vars.callbacks)]">
+            <foreach collection="#[vars.checkIns]" doc:name="For each check-in">
+              <!-- convert {<id>: <checkInDetails>} to <checkInDetails> -->
+              <set-variable variableName="checkInDetails" value="#[payload mapObject (v, k) -&gt; read(v, 'application/json')]" doc:name="checkInDetails"/>
+              <set-variable variableName="checkInID" value="#[vars.checkInDetails.id]" doc:name="checkInID"/>
+              <foreach collection="#[dw::core::Objects::entrySet(vars.callbacks)]" doc:name="For each callback">
+                <anypoint-mq:publish destination="${anypoint.mq.callbacks.q}" config-ref="amqConfig" doc:name="To Anypoint MQ">
+                  <anypoint-mq:body><![CDATA[#[write(vars.checkInDetails, 'application/json; indent=false') as String]]]></anypoint-mq:body>
+                  <anypoint-mq:properties><![CDATA[#[output application/java
+                    ---
+                    {
+                      "correlationId" : correlationId,
+                      callbackID: payload.key, 
+                      callbackUrl: (payload.value as String)
+                    }]]]></anypoint-mq:properties>
+                </anypoint-mq:publish>
+                <logger level="INFO" message="Finished publishing callback to Anypoint MQ queue, End" doc:name="After publish to Anypoint MQ, End"/>
+              </foreach>
+              <os:remove key="#[vars.checkInID]" objectStore="checkInsOS" doc:name="Remove check-in used for invoking callbacks"/>
+            </foreach>
+          </when>
+        </choice>
+      </when>
+    </choice>
+    <logger level="INFO" message="Ending triggering all callbacks" doc:name="END"/>
+  </flow>
+  <flow name="invoke-callback-first-attempt">
+    <anypoint-mq:subscriber destination="${anypoint.mq.callbacks.q}" config-ref="amqConfig" outputMimeType="application/json"/>
+    <logger level="INFO" message="#['Retrieve callback from queue: $(attributes.properties.correlationId default ''). Message ID: $(attributes.messageId)']" doc:name="START"/>
+    <validation:is-not-blank-string value="#[attributes.properties.callbackUrl]" doc:name="Validate callbackUrl not null/blank"/>
+    <set-variable variableName="callbackUrl" value="#[attributes.properties.callbackUrl]" doc:name="callbackUrl"/>
+    <set-variable variableName="originalPayload" value="#[payload]" doc:name="originalPayload"/>
+    <set-variable variableName="callbackID" value="#[attributes.properties.callbackID]" doc:name="callbackID"/>
+    <flow-ref name="invoke-callback" doc:name="invoke-callback"/>
+    <logger level="INFO" message="Finished invoking callback" doc:name="END"/>
+    <error-handler>
+      <on-error-continue>
+        <logger level="INFO" message="#['Could not invoke callback $(vars.callbackUrl)']" doc:name="EXCEPTION"/>
+        <logger level="INFO" message="Before publishing callback to Anypoint MQ retry queue" doc:name="Before publish to Anypoint MQ"/>
+        <anypoint-mq:publish destination="${anypoint.mq.callbacks.retry.q}" config-ref="amqConfig" doc:name="To Anypoint MQ">
+          <anypoint-mq:body><![CDATA[#[vars.originalPayload]]]></anypoint-mq:body>
+          <anypoint-mq:properties><![CDATA[#[output application/java
+                ---
+                {
+                  "correlationId" : correlationId,
+                  callbackID: vars.callbackID, 
+                  callbackUrl: vars.callbackUrl
+                }]]]></anypoint-mq:properties>
+        </anypoint-mq:publish>
+      </on-error-continue>
+    </error-handler>
+  </flow>
+  <flow name="invoke-callback-retries">
+    <anypoint-mq:subscriber destination="${anypoint.mq.callbacks.retry.q}" config-ref="amqConfig" outputMimeType="application/json"/>
+    <logger level="INFO" message="#['Retrieve callback retry from queue: $(attributes.properties.correlationId default ''). Message ID: $(attributes.messageId)']" doc:name="START"/>
+    <validation:is-not-blank-string value="#[attributes.properties.callbackUrl]" doc:name="Validate callbackUrl not null/blank"/>
+    <set-variable variableName="callbackUrl" value="#[attributes.properties.callbackUrl]" doc:name="callbackUrl"/>
+    <set-variable variableName="originalPayload" value="#[payload]" doc:name="originalPayload"/>
+    <set-variable variableName="callbackID" value="#[attributes.properties.callbackID]" doc:name="callbackID"/>
+    <flow-ref name="invoke-callback" doc:name="invoke-callback"/>
+    <logger level="INFO" message="Finished invoking callback retry" doc:name="END"/>
+    <error-handler>
+      <on-error-propagate>
+        <logger level="INFO" message="#['Could not invoke retried callback $(vars.callbackUrl)']" doc:name="EXCEPTION"/>
+      </on-error-propagate>
+    </error-handler>
+  </flow>
+  <flow name="invoke-callback">
+    <logger level="INFO" message="#['Starting invoking callback $(vars.callbackUrl) for check-in.']" doc:name="START"/>
+    <ee:transform doc:name="Payload to cancellation notification">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+          output application/xml
+          ---
+          {
+            CancellationNotification: {
+              PNR:               payload..pnr,
+              PassengerLastName: payload.passengerLastName
+            }
+          }]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <logger level="INFO" message="#[output application/java --- 'HTTP POSTing payload to callback $(vars.callbackUrl): ' ++ write(payload, 'application/xml; indent=false')]" doc:name="FLOW"/>
+    <http:request method="POST" url="#[vars.callbackUrl]" doc:name="Invoke callback"/>
+    <logger level="INFO" message="Ending invoking callback for check-in" doc:name="END"/>
+    <error-handler>
+      <on-error-propagate>
+        <logger level="ERROR" message="#['Could not invoke callback $(vars.callbackUrl)']" doc:name="EXCEPTION"/>
+      </on-error-propagate>
+    </error-handler>
+  </flow>
+  <flow name="handle-dlq">
+    <anypoint-mq:subscriber destination="${anypoint.mq.callbacks.dlq}" config-ref="amqConfig"/>
+    <logger level="INFO" message="Processing message from DLQ" doc:name="Processing"/>
+    <try>
+      <os:remove key="#[attributes.properties.callbackID]" objectStore="callbacksOS" doc:name="Remove unreachable registered callback"/>
+      <error-handler>
+        <on-error-continue>
+          <logger level="ERROR" message="#['Could not callback from OS']" doc:name="EXCEPTION"/>
+        </on-error-continue>
+      </error-handler>
+    </try>
+    <logger level="INFO" message="Finished cleaning up failed callback" doc:name="END"/>
+  </flow>
+</mule>

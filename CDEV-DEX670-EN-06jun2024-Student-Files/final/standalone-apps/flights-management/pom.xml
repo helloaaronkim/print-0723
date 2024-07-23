@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>a63e6d25-8aaf-4512-b36d-d91b90a55c4a</groupId>
+    <artifactId>standalone-apps-parent-pom</artifactId>
+    <version>1.0.27</version>
+    <relativePath>../parent-pom/pom.xml</relativePath>
+  </parent>
+  <groupId>a63e6d25-8aaf-4512-b36d-d91b90a55c4a</groupId>
+  <artifactId>flights-management-app</artifactId>
+  <version>1.0.27</version>
+  <packaging>mule-application</packaging>
+  <name>flights-management</name>
+  <properties>
+    <api.layer>${api.layer.backend}</api.layer>
+  </properties>
+  <!-- all dependencies (without version!) that are specific to this Mule app (and hence not already defined in any parent POM): -->
+  <dependencies>
+    <dependency>
+      <groupId>org.mule.modules</groupId>
+      <artifactId>mule-soapkit-module</artifactId>
+      <classifier>mule-plugin</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.mule.connectors</groupId>
+      <artifactId>mule-objectstore-connector</artifactId>
+      <classifier>mule-plugin</classifier>
+    </dependency>
+    <dependency>
+      <groupId>com.mulesoft.connectors</groupId>
+      <artifactId>anypoint-mq-connector</artifactId>
+      <classifier>mule-plugin</classifier>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.mule.tools.maven</groupId>
+        <artifactId>mule-maven-plugin</artifactId>
+        <extensions>true</extensions>
+        <configuration>
+          <cloudhub2Deployment>
+            <uri>${ap.uri}</uri>
+            <businessGroup>${ap.businessGroup}</businessGroup>
+            <environment>${ap.environment}</environment>
+            <target>${ch.space}</target>
+            <muleVersion>${app.runtime.semver}</muleVersion>
+            <provider>MC</provider>
+            <replicas>${ch.replicas}</replicas>
+            <vCores>${ch.vCores}</vCores>
+            <applicationName>${deployment.name}</applicationName>
+            <deploymentTimeout>${deployment.timeoutMillis}</deploymentTimeout>
+            <connectedAppClientId>${ap.ca.client_id}</connectedAppClientId>
+            <connectedAppClientSecret>${ap.ca.client_secret}</connectedAppClientSecret>
+            <connectedAppGrantType>client_credentials</connectedAppGrantType>
+            <properties>
+              <anypoint.platform.config.analytics.agent.enabled>true</anypoint.platform.config.analytics.agent.enabled>
+              <anypoint.platform.visualizer.displayName>${project.name}</anypoint.platform.visualizer.displayName>
+              <!-- api.layer must be set in every concrete Mule app! -->
+              <anypoint.platform.visualizer.layer>${api.layer}</anypoint.platform.visualizer.layer>
+              <env>${deployment.env}</env>
+              <!-- concrete Mule apps can provide their own props which will be merged with the props given here -->
+            </properties>
+            <secureProperties>
+              <encrypt.key>${encrypt.key}</encrypt.key>
+              <anypoint.platform.client_id>${ap.client_id}</anypoint.platform.client_id>
+              <anypoint.platform.client_secret>${ap.client_secret}</anypoint.platform.client_secret>
+            </secureProperties>
+            <deploymentSettings>
+              <http>
+                <inbound>
+                  <lastMileSecurity>true</lastMileSecurity>
+                  <publicUrl>https://${deployment.name}.${ch.space}.anyair.net</publicUrl>
+                </inbound>
+              </http>
+              <generateDefaultPublicUrl>true</generateDefaultPublicUrl>
+            </deploymentSettings>
+            <integrations>
+              <services>
+                <objectStoreV2>
+                  <enabled>true</enabled>
+                </objectStoreV2>
+              </services>
+            </integrations>
+          </cloudhub2Deployment>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

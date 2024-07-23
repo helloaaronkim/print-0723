@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+
+<definitions targetNamespace="http://flightsMgmt.sword.com/" name="FlightsManagementService" xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:wsp="http://www.w3.org/ns/ws-policy" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsp1_2="http://schemas.xmlsoap.org/ws/2004/09/policy" xmlns:tns="http://flightsMgmt.sword.com/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:wsam="http://www.w3.org/2007/05/addressing/metadata">
+  <types>
+    <xs:schema version="1.0" targetNamespace="http://flightsMgmt.sword.com/" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+      <xs:element name="checkIn" type="tns:checkIn"/>
+
+      <xs:element name="checkInResponse" type="tns:checkInResponse"/>
+
+      <xs:element name="getTicketByPNR" type="tns:getTicketByPNR"/>
+
+      <xs:element name="getTicketByPNRResponse" type="tns:getTicketByPNRResponse"/>
+
+      <xs:element name="registerForCancellationNotifications" type="tns:registerForCancellationNotifications"/>
+
+      <xs:element name="registerForCancellationNotificationsResponse" type="tns:registerForCancellationNotificationsResponse"/>
+
+      <xs:complexType name="checkIn">
+        <xs:sequence>
+          <xs:element name="pnr" type="xs:string"/>
+          <xs:element name="passengerLastName" type="xs:string"/>
+          <xs:element name="numOfBags" type="xs:int"/>
+        </xs:sequence>
+      </xs:complexType>
+
+      <xs:complexType name="checkInResponse">
+        <xs:sequence>
+          <xs:element name="return" type="xs:boolean"/>
+        </xs:sequence>
+      </xs:complexType>
+
+      <xs:complexType name="getTicketByPNR">
+        <xs:sequence>
+          <xs:element name="pnr" type="xs:string"/>
+        </xs:sequence>
+      </xs:complexType>
+
+      <xs:complexType name="getTicketByPNRResponse">
+        <xs:sequence>
+          <xs:element name="return" type="tns:ticket"/>
+        </xs:sequence>
+      </xs:complexType>
+
+      <xs:complexType name="ticket">
+        <xs:sequence>
+          <xs:element name="ticketHolderLastName" type="xs:string"/>
+          <xs:element name="ticketHolderPassportNo" type="xs:string"/>
+          <xs:element name="origin" type="xs:string"/>
+          <xs:element name="destination" type="xs:string"/>
+          <xs:element name="flightDate" type="xs:string"/>
+          <xs:element name="flightNo" type="xs:string"/>
+          <xs:element name="boarding" type="xs:string"/>
+          <xs:element name="class" type="xs:string"/>
+          <xs:element name="depart" type="xs:string"/>
+          <xs:element name="gate" type="xs:string"/>
+          <xs:element name="seat" type="xs:string"/>
+        </xs:sequence>
+      </xs:complexType>
+
+      <xs:complexType name="registerForCancellationNotifications">
+        <xs:sequence>
+          <xs:element name="callbackURL" type="xs:anyURI"/>
+        </xs:sequence>
+      </xs:complexType>
+
+      <xs:complexType name="registerForCancellationNotificationsResponse">
+        <xs:sequence/>
+      </xs:complexType>
+</xs:schema>
+  </types>
+  <message name="checkIn">
+    <part name="parameters" element="tns:checkIn"/>
+  </message>
+  <message name="checkInResponse">
+    <part name="parameters" element="tns:checkInResponse"/>
+  </message>
+  <message name="getTicketByPNR">
+    <part name="parameters" element="tns:getTicketByPNR"/>
+  </message>
+  <message name="getTicketByPNRResponse">
+    <part name="parameters" element="tns:getTicketByPNRResponse"/>
+  </message>
+  <message name="registerForCancellationNotifications">
+    <part name="parameters" element="tns:registerForCancellationNotifications"/>
+  </message>
+  <message name="registerForCancellationNotificationsResponse">
+    <part name="parameters" element="tns:registerForCancellationNotificationsResponse"/>
+  </message>
+  <portType name="FlightsManagement">
+    <operation name="checkIn">
+      <input wsam:Action="http://flightsMgmt.sword.com/FlightsManagement/checkInRequest" message="tns:checkIn"/>
+      <output wsam:Action="http://flightsMgmt.sword.com/FlightsManagement/checkInResponse" message="tns:checkInResponse"/>
+    </operation>
+    <operation name="getTicketByPNR">
+      <input wsam:Action="http://flightsMgmt.sword.com/FlightsManagement/getTicketByPNRRequest" message="tns:getTicketByPNR"/>
+      <output wsam:Action="http://flightsMgmt.sword.com/FlightsManagement/getTicketByPNRResponse" message="tns:getTicketByPNRResponse"/>
+    </operation>
+    <operation name="registerForCancellationNotifications">
+      <input wsam:Action="http://flightsMgmt.sword.com/FlightsManagement/registerForCancellationNotificationsRequest" message="tns:registerForCancellationNotifications"/>
+      <output wsam:Action="http://flightsMgmt.sword.com/FlightsManagement/registerForCancellationNotificationsResponse" message="tns:registerForCancellationNotificationsResponse"/>
+    </operation>
+  </portType>
+  <binding name="FlightsManagementPortBinding" type="tns:FlightsManagement">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" style="document"/>
+    <operation name="checkIn">
+      <soap:operation soapAction=""/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+    <operation name="getTicketByPNR">
+      <soap:operation soapAction=""/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+    <operation name="registerForCancellationNotifications">
+      <soap:operation soapAction=""/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+  </binding>
+  <service name="FlightsManagementService">
+    <port name="FlightsManagementPort" binding="tns:FlightsManagementPortBinding">
+      <soap:address location="REPLACE_WITH_ACTUAL_URL"/>
+    </port>
+  </service>
+</definitions>

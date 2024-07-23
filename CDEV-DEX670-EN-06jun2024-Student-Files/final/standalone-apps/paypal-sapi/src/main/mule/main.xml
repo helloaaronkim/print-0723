@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:oauth="http://www.mulesoft.org/schema/mule/oauth" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="  http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd  http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd   http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd  http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd    http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd  http://www.mulesoft.org/schema/mule/oauth http://www.mulesoft.org/schema/mule/oauth/current/mule-oauth.xsd  http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+  <flow name="create-payment">
+    <logger level="INFO" message="Creating payment" doc:name="START"/>
+    <validation:is-not-blank-string value="#[payload.description]" message="Description is missing" doc:name="description else raise EXT:BAD_REQUEST">
+      <error-mapping targetType="EXT:BAD_REQUEST"/>
+    </validation:is-not-blank-string>
+    <validation:is-number value="#[payload.amount]" numberType="DOUBLE" minValue="0" message="Amount is not a valid monetary amount" doc:name="amount else raise EXT:BAD_REQUEST">
+      <error-mapping targetType="EXT:BAD_REQUEST"/>
+    </validation:is-number>
+    <ee:transform doc:name="To PayPal create payment API request body">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+          output application/json
+          var invoiceNo = (10000000000 + randomInt(90000000000)) as String // random invoice number
+          ---
+          {
+            intent: "sale",
+            payer: {
+              payment_method: "paypal"
+            },
+            transactions: [
+              {
+                amount: {
+                  total: payload.amount as String,
+                  currency: "USD"
+                },
+                description: payload.description,
+                custom: "ANYAIRLINE_90048630024435",
+                invoice_number: invoiceNo,
+                payment_options: {
+                  allowed_payment_method: "INSTANT_FUNDING_SOURCE"
+                },
+                soft_descriptor: "ANYAIRLINE BAGGAGE"
+              }
+            ],
+            note_to_payer: "Contact us for any questions on your order."
+          }]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <logger level="INFO" message="Before invoking PayPal create payment" doc:name="Before API call"/>
+    <ee:transform doc:name="Build params var map for retry params">
+      <ee:variables>
+        <ee:set-variable variableName="params"><![CDATA[{
+            invokeWebApiFlow:     "paypal-create-payment",
+            maxRetries:           2,
+            millisBetweenRetries: 500,
+            namespace:            "HTTP"
+          }]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <flow-ref name="invoke-web-api-until-successful" doc:name="invoke-web-api-until-successful"/>
+    <validation:is-true expression="#[vars.successful]" message="Cannot create payment at the moment" doc:name="Successful else raise EXT:CANT_CREATE_PAYMENT">
+      <error-mapping targetType="EXT:CANT_CREATE_PAYMENT"/>
+    </validation:is-true>
+    <logger level="INFO" message="After invoking PayPal create payment" doc:name="AFTER REQUEST"/>
+    <validation:is-not-blank-string value="#[payload.id]" doc:name="ID"/>
+    <set-payload value="#[output application/java --- payload.id]" doc:name="Payment ID"/>
+    <validation:is-not-blank-string value="#[payload]" doc:name="payload"/>
+    <logger level="INFO" message="Created payment" doc:name="END"/>
+  </flow>
+  <sub-flow name="paypal-create-payment">
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+    <http:request url="${paypal.paymentUrl}" method="POST" config-ref="paypalServerHttpRequestConfig" doc:name="PayPal: create payment"/>
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+  </sub-flow>
+  <flow name="approve-payment">
+    <logger level="INFO" message="Registering payment approval" doc:name="START"/>
+    <validation:is-not-blank-string value="#[vars.paymentID]" message="Payment ID is missing" doc:name="paymentID else raise EXT:BAD_REQUEST">
+      <error-mapping targetType="EXT:BAD_REQUEST"/>
+    </validation:is-not-blank-string>
+    <validation:is-not-blank-string value="#[payload.payerID]" message="Payer ID is missing" doc:name="payerID else raise EXT:BAD_REQUEST">
+      <error-mapping targetType="EXT:BAD_REQUEST"/>
+    </validation:is-not-blank-string>
+    <ee:transform doc:name="To PayPal execute payment API request body">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+          output application/json
+          ---
+          { 
+            payer_id: payload.payerID 
+          }]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <logger level="INFO" message="Before invoking PayPal execute payment" doc:name="Before API call"/>
+    <ee:transform doc:name="Build params var map for retry params">
+      <ee:variables>
+        <ee:set-variable variableName="params"><![CDATA[{
+            invokeWebApiFlow:     "paypal-execute-payment",
+            maxRetries:           2,
+            millisBetweenRetries: 500,
+            namespace:            "HTTP"
+        }]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <flow-ref name="invoke-web-api-until-successful" doc:name="invoke-web-api-until-successful"/>
+    <validation:is-true expression="#[vars.successful]" message="Cannot execute payment at the moment" doc:name="Successful else raise EXT:CANT_EXECUTE_PAYMENT">
+      <error-mapping targetType="EXT:CANT_EXECUTE_PAYMENT"/>
+    </validation:is-true>
+    <logger level="INFO" message="After invoking PayPal execute payment" doc:name="After API call"/>
+    <validation:is-true expression="#[payload.state is String]" doc:name="Execute payment response is String"/>
+    <set-payload value="#[output application/java --- lower(payload.state) == 'approved']" doc:name="Payment execution approved"/>
+    <validation:is-true expression="#[payload is Boolean]" doc:name="payload is Boolean"/>
+    <logger level="INFO" message="Registered payment approval" doc:name="END"/>
+  </flow>
+  <sub-flow name="paypal-execute-payment">
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+    <validation:is-not-blank-string value="#[vars.paymentID]" doc:name="paymentID"/>
+    <http:request url="${paypal.executeUrl}" method="POST" config-ref="paypalServerHttpRequestConfig" doc:name="PayPal: execute payment">
+      <http:uri-params><![CDATA[#[output application/java --- {paymentID : vars.paymentID}]]]></http:uri-params>
+    </http:request>
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+  </sub-flow>
+</mule>

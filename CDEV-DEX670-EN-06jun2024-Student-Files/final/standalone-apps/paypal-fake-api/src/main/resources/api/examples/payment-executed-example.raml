@@ -1,0 +1,36 @@
+#%RAML 1.0 NamedExample
+{
+  "id": "PAY-1B56960729604235TKQQIYVY",
+  "create_time": "2017-11-22T09:30:02Z",
+  "update_time": "2017-11-22T09:30:02Z",
+  "state": "approved",
+  "intent": "sale",
+  "payer": {
+    "payment_method": "paypal",
+    "payer_info": {
+      "email": "nuser@paypal.com",
+      "first_name": "Charlie",
+      "last_name": "Rose",
+      "payer_id": "RRCYKKSLIEUQL"
+    },
+  },
+  "transactions": [
+    {
+      "amount":{
+        "total":"80.00",
+        "currency":"USD"
+      },
+      "description": "Check-In Baggage.",
+      "custom": "ANYAIRLINE_90048630024435",
+      "invoice_number": "48787589673",
+      "soft_descriptor":"ANYAIRLINE BAGGAGE"
+    }
+  ],
+  "links": [
+    {
+      "href": "https://api.paypal.com/v1/payments/payment/PAY-1B56960729604235TKQQIYVY",
+      "rel": "self",
+      "method": "GET"
+    }
+  ]
+}

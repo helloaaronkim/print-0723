@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation=" http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd   http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd   http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd   http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd    http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd  http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd  http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd    http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+  <!-- mkdir /tmp/todo; cp src/main/resources/examples/offlinecheckins.csv /tmp/todo/ -->
+  <!-- FIXME initialState -->
+  <flow name="listen-for-files-on-sftp-server" initialState="stopped">
+    <sftp:listener config-ref="sftpConfig" outputMimeType="application/csv" directory="${files.fromdir}" recursive="false" moveToDirectory="${files.todir}" renameTo="#[now() as String]" applyPostActionWhenFailed="true" primaryNodeOnly="true" outputEncoding="UTF-8" doc:name="On New or Updated File on SFTP Server">
+      <ee:repeatable-file-store-stream inMemorySize="${files.stream.memBufferSizeMB}" bufferUnit="MB"/>
+      <reconnect-forever frequency="${filesystem.reconnectIntervalMillis}"/>
+      <scheduling-strategy>
+        <fixed-frequency startDelay="${files.poll.intervalMinutes}" frequency="${files.poll.intervalMinutes}" timeUnit="MINUTES"/>
+      </scheduling-strategy>
+      <sftp:matcher filenamePattern="${files.pattern}" directories="EXCLUDE"/>
+    </sftp:listener>
+    <flow-ref name="process-check-in-submissions-file" doc:name="process-check-in-submissions-file"/>
+  </flow>
+  <!-- FIXME initialState -->
+  <flow name="listen-for-files-in-file-system" initialState="stopped">
+    <file:listener config-ref="fileConfig" outputMimeType="application/csv" directory="${files.fromdir}" recursive="false" moveToDirectory="${files.todir}" renameTo="#[now() as String]" applyPostActionWhenFailed="true" primaryNodeOnly="true" outputEncoding="UTF-8" doc:name="On New or Updated File in Filesystem">
+      <ee:repeatable-file-store-stream inMemorySize="${files.stream.memBufferSizeMB}" bufferUnit="MB"/>
+      <reconnect-forever frequency="${ftpserver.reconnectIntervalMillis}"/>
+      <scheduling-strategy>
+        <fixed-frequency startDelay="${files.poll.intervalMinutes}" frequency="${files.poll.intervalMinutes}" timeUnit="MINUTES"/>
+      </scheduling-strategy>
+      <file:matcher filenamePattern="${files.pattern}" directories="EXCLUDE"/>
+    </file:listener>
+    <flow-ref name="process-check-in-submissions-file" doc:name="process-check-in-submissions-file"/>
+  </flow>
+  <flow name="process-check-in-submissions-file">
+    <logger level="INFO" message="Check-in submissions file received" doc:name="START"/>
+    <ee:transform doc:name="From CSV to Java to workaround streaming bug">
+      <ee:message>
+        <ee:set-payload><![CDATA[output application/java --- payload]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <!-- process all records, regardless of the number of failed records -->
+    <batch:job jobName="oneRecordPerCheckInSubmission" blockSize="${batch.blockSize}" maxFailedRecords="-1">
+      <batch:process-records>
+        <batch:step name="step1" acceptPolicy="ALL">
+          <set-variable variableName="originalCheckInSubmission" value="#[payload]" doc:name="Remember originalCheckInSubmission"/>
+          <flow-ref name="check-in-via-flights-mgmt-sapi" doc:name="check-in-via-flights-mgmt-sapi"/>
+          <set-variable variableName="step1Completed" value="#[true]" doc:name="step1Completed=true"/>
+        </batch:step>
+        <batch:step name="step2" acceptPolicy="ALL">
+          <flow-ref name="to-input-params-for-passenger-data-system" doc:name="to-input-params-for-passenger-data-system"/>
+          <batch:aggregator doc:name="For entire batch of records" size="${db.batchSize}">
+            <flow-ref name="record-flights-in-passenger-data-system" doc:name="record-flights-in-passenger-data-system"/>
+            <!-- vars.records is the list of records in this aggregator and is set by the aggregator -->
+            <!-- each record has a property `variables` that are the vars of that record -->
+            <!-- must add a new var to `variables` using a Java helper, but can then read the newly added var from DataWeave -->
+            <!-- affectedRows is an array with one entry per record giving the num of DB-records inserted into the DB -->
+            <!-- affectedRows is set here in the aggregator and must therefore be read from `vars` not from `variables`  -->
+            <ee:transform doc:name="Set step2Completed on each record">
+              <ee:variables>
+                <ee:set-variable variableName="unused"><![CDATA[
+                  output application/java
+                  fun addAndGetVar(rec, k, v) = do {
+                      import java!com::mulesoft::training::batch::BatchHelper
+                      var ignore = BatchHelper::addVariableToRecord(rec, k, v) // add var to record as side-effect in Java
+                      --- 
+                      rec.variables[k] // get var from record and return it
+                  }
+                  ---
+                  vars.records map (rec, idx) -> addAndGetVar(rec, 'step2Completed', vars.affectedRows[idx] == 1)
+                  ]]></ee:set-variable>
+              </ee:variables>
+            </ee:transform>
+          </batch:aggregator>
+        </batch:step>
+        <batch:step name="errorHandlingStep" acceptPolicy="ONLY_FAILURES">
+          <flow-ref name="send-to-dlq" doc:name="send-to-dlq"/>
+        </batch:step>
+      </batch:process-records>
+      <batch:on-complete>
+        <logger level="INFO" message="End of check-in submissions file batch processing: #[output application/json --- payload]" doc:name="END"/>
+      </batch:on-complete>
+    </batch:job>
+    <logger level="INFO" message="Check-in submissions file being processed asynchronously" doc:name="END"/>
+  </flow>
+  <flow name="check-in-via-flights-mgmt-sapi">
+    <ee:transform doc:name="To Flights Management SAPI request">
+      <ee:variables>
+        <ee:set-variable variableName="pnr"><![CDATA[payload.pnr]]></ee:set-variable>
+        <ee:set-variable variableName="checkInRequest"><![CDATA[
+          output application/json
+          ---
+          {
+            lastName: trim(payload.'passenger-last-name'),
+            numBags:  trim(payload.'number-of-checked-bags') as Number
+          }]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <logger level="DEBUG" message="Before check-in via Flights Management SAPI" doc:name="BEFORE_REQUEST"/>
+    <ee:transform doc:name="Build params var map for retry params">
+      <ee:variables>
+        <ee:set-variable variableName="params"><![CDATA[{
+            invokeWebApiFlow:     "fms-update-checkins-by-pnr",
+            maxRetries:           2,
+            millisBetweenRetries: 500,
+            namespace:            "FLIGHTS-MANAGEMENT-SAPI"
+          }]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <flow-ref name="invoke-web-api-until-successful" doc:name="invoke-web-api-until-successful"/>
+    <validation:is-true expression="#[vars.successful]" doc:name="Successful else raise CANNOT_UPDATE_CHECKINS">
+      <error-mapping targetType="APP:CANNOT_UPDATE_CHECKINS"/>
+    </validation:is-true>
+    <logger level="DEBUG" message="After check-in via Flights Management SAPI" doc:name="AFTER_REQUEST"/>
+  </flow>
+  <flow name="fms-update-checkins-by-pnr">
+    <http:request config-ref="flightsManagementSapiConfig" method="PUT" path="/tickets/{PNR}/checkin" target="checkInResponse">
+      <http:body><![CDATA[#[vars.checkInRequest]]]></http:body>
+      <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"PNR" : vars.pnr
+}]]]></http:uri-params>
+    </http:request>
+  </flow>
+  <flow name="to-input-params-for-passenger-data-system">
+    <ee:transform doc:name="Payload to input params for SQL INSERT to Passenger Data system">
+      <ee:message>
+        <ee:set-payload><![CDATA[
+          output application/java
+          ---
+          {
+            lno:                trim(payload.'loyalty-number'),
+            flight_date:        (trim(payload.'flight-date') as Date) as String {format: 'yyyy-MM-d'}, // insert Date as String
+            flight_no:          upper(trim(payload.'flight-number')),
+            flight_origin:      upper(trim(payload.'origin-airport')),
+            flight_destination: upper(trim(payload.'destination-airport')),
+            checkin:            (trim(payload.'checkin-timestamp') as DateTime >> "UTC") as String {format: 'yyyy-MM-d HH:mm:ss'} // convert to UTC and insert as String for PostgreSQL
+          }]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+  </flow>
+  <flow name="record-flights-in-passenger-data-system">
+    <ee:transform doc:name="To SQL INSERT to Passenger Data system">
+      <ee:variables>
+        <ee:set-variable variableName="sql"><![CDATA[
+          "INSERT INTO $(p('db.checkintable')) 
+          (loyalty_no,flight_date,flight_no,flight_origin,flight_destination,checkin_utc) 
+          VALUES 
+          (:lno,:flight_date,:flight_no,:flight_origin,:flight_destination,:checkin)"
+        ]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <logger level="DEBUG" message="Before insert passenger flight check-in records into Passenger Data system" doc:name="BEFORE_REQUEST"/>
+    <db:bulk-insert queryTimeout="${db.timeOutMillis}" queryTimeoutUnit="MILLISECONDS" target="affectedRows" config-ref="postgresDBConfig" doc:name="Insert passenger flight check-in records">
+      <db:bulk-input-parameters>#[payload]</db:bulk-input-parameters>
+      <db:sql>#[vars.sql]</db:sql>
+    </db:bulk-insert>
+    <set-variable variableName="sumAffectedRows" value="#[sum(vars.affectedRows)]" doc:name="Calculate sumAffectedRows"/>
+    <logger level="INFO" message="#['Inserted $(vars.sumAffectedRows) passenger flight check-in records into Passenger Data system']" doc:name="AFTER_REQUEST"/>
+  </flow>
+  <flow name="send-to-dlq">
+    <choice doc:name="Step1 not sucessfully completed?">
+      <when expression="#[vars.step1Completed != true]">
+        <!-- this record has not successfully completed step1 of the batch jobs -->
+        <logger level="ERROR" message="Sending check-in submission to DLQ for Flights Management SAPI" doc:name="EXCEPTION"/>
+        <vm:publish queueName="${dlq.flightsMgmtSAPI}" doc:name="Publish to DLQ for Flights Management SAPI" config-ref="vmConfig">
+          <vm:content>#[vars.originalCheckInSubmission]</vm:content>
+        </vm:publish>
+      </when>
+    </choice>
+    <choice doc:name="Step2 not sucessfully completed?">
+      <when expression="#[vars.step2Completed != true]">
+        <!-- this record has not successfully completed step1 of the batch jobs -->
+        <logger level="ERROR" message="Sending check-in submission to DLQ for Passenger Data system" doc:name="EXCEPTION"/>
+        <vm:publish queueName="${dlq.passengerDataSystem}" doc:name="Publish to DLQ for Passenger Data system" config-ref="vmConfig">
+          <vm:content>#[vars.originalCheckInSubmission]</vm:content>
+        </vm:publish>
+      </when>
+    </choice>
+  </flow>
+</mule>

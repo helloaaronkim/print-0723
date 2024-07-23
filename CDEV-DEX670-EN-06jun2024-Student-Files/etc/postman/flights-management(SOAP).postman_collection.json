@@ -1,0 +1,141 @@
+{
+	"info": {
+		"_postman_id": "808b45c8-9223-43dd-84c1-99f534911f24",
+		"name": "flights-management(SOAP)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "88351"
+	},
+	"item": [
+		{
+			"name": "registerForCancellationNotifications(direct to worker)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "<s11:Envelope xmlns:s11='http://schemas.xmlsoap.org/soap/envelope/'>\n    <s11:Body>\n        <ns1:registerForCancellationNotifications xmlns:ns1='http://flightsMgmt.sword.com/'>\n            <callbackURL>http://localhost:8082/test</callbackURL>\n        </ns1:registerForCancellationNotifications>\n    </s11:Body>\n</s11:Envelope>",
+					"options": {
+						"raw": {
+							"language": "xml"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://tngaa-flights-management-devx-9yj2rh.d5n5q8.usa-e1.cloudhub.io/api/v1/FlightsManagementService",
+					"protocol": "https",
+					"host": [
+						"tngaa-flights-management-devx-9yj2rh",
+						"d5n5q8",
+						"usa-e1",
+						"cloudhub",
+						"io"
+					],
+					"path": [
+						"api",
+						"v1",
+						"FlightsManagementService"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "checkIn(direct to worker)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "<s11:Envelope xmlns:s11='http://schemas.xmlsoap.org/soap/envelope/'>\n    <s11:Body>\n        <ns1:checkIn xmlns:ns1='http://flightsMgmt.sword.com/'>\n            <pnr>PNR123</pnr>\n            <passengerLastName>wubba</passengerLastName>\n            <numOfBags>99</numOfBags>\n        </ns1:checkIn>\n    </s11:Body>\n</s11:Envelope>",
+					"options": {
+						"raw": {
+							"language": "xml"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://tngaa-flights-management-devx-9yj2rh.d5n5q8.usa-e1.cloudhub.io/api/v1/FlightsManagementService",
+					"protocol": "https",
+					"host": [
+						"tngaa-flights-management-devx-9yj2rh",
+						"d5n5q8",
+						"usa-e1",
+						"cloudhub",
+						"io"
+					],
+					"path": [
+						"api",
+						"v1",
+						"FlightsManagementService"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "checkIn(DLB - Add cert in preferences)",
+			"protocolProfileBehavior": {
+				"strictSSL": false
+			},
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "<s11:Envelope xmlns:s11='http://schemas.xmlsoap.org/soap/envelope/'>\n    <s11:Body>\n        <ns1:checkIn xmlns:ns1='http://flightsMgmt.sword.com/'>\n            <pnr>PNR123</pnr>\n            <passengerLastName>wubba</passengerLastName>\n            <numOfBags>99</numOfBags>\n        </ns1:checkIn>\n    </s11:Body>\n</s11:Envelope>",
+					"options": {
+						"raw": {
+							"language": "xml"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://tngaa-flights-management-devx.nonprod-internalps.anyair.net/api/v1/FlightsManagementService",
+					"protocol": "https",
+					"host": [
+						"tngaa-flights-management-devx",
+						"nonprod-internalps",
+						"anyair",
+						"net"
+					],
+					"path": [
+						"api",
+						"v1",
+						"FlightsManagementService"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "wsdl",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://tngaa-flights-management-devx-9yj2rh.d5n5q8.usa-e1.cloudhub.io/api/v1/FlightsManagementService?wsdl",
+					"protocol": "https",
+					"host": [
+						"tngaa-flights-management-devx-9yj2rh",
+						"d5n5q8",
+						"usa-e1",
+						"cloudhub",
+						"io"
+					],
+					"path": [
+						"api",
+						"v1",
+						"FlightsManagementService"
+					],
+					"query": [
+						{
+							"key": "wsdl",
+							"value": null
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

@@ -1,0 +1,447 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracing="http://www.mulesoft.org/schema/mule/tracing" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="      http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd       http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd   http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd  http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd    http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd  http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd  http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd http://www.mulesoft.org/schema/mule/tracing http://www.mulesoft.org/schema/mule/tracing/current/mule-tracing.xsd">
+  <flow name="check-in-by-pnr">
+    <tracing:set-logging-variable variableName="PNR" value="#[vars.PNR default '']" doc:name="Set PNR tracing var"/>
+    <logger level="INFO" message="#['Checking-in by PNR: ' ++ (vars.PNR default '')]"/>
+    <validation:is-not-blank-string value="#[vars.PNR]" message="PNR is missing" doc:name="PNR else raise EXT:BAD_REQUEST">
+      <error-mapping targetType="EXT:BAD_REQUEST"/>
+    </validation:is-not-blank-string>
+    <set-variable variableName="checkIn" value="#[payload]" doc:name="checkIn"/>
+    <!-- unnecessary as already performed by APIKit -->
+    <json:validate-schema schema="schemas/schema-checkIn.json" doc:name="Validate checkIn">
+      <json:content><![CDATA[#[vars.checkIn]]]></json:content>
+    </json:validate-schema>
+    <flow-ref name="validate-ticket-passport-matches" doc:name="validate-ticket-passport-matches"/>
+    <try>
+      <!-- Create a static array of compensation flows for each route in the following scatter-gather, in the same order as those routes -->
+      <!-- Must also enable these flows in MUnit test! -->
+      <set-variable variableName="allCompensationFlows" value="#[ ['check-in-flights-management-compensate', 'register-passenger-data-compensate', 'create-payment-for-bags-compensate'] ]" doc:name="One compensation flow for every route"/>
+      <scatter-gather>
+        <route name="check-in-flights-management">
+          <flow-ref name="check-in-flights-management" doc:name="check-in-flights-management"/>
+        </route>
+        <route name="register-passenger-data">
+          <flow-ref name="register-passenger-data" doc:name="register-passenger-data"/>
+        </route>
+        <route name="create-payment-for-bags">
+          <flow-ref name="create-payment-for-bags" doc:name="create-payment-for-bags"/>
+        </route>
+      </scatter-gather>
+      <error-handler>
+        <on-error-propagate type="MULE:COMPOSITE_ROUTING">
+          <!--
+          If route 2 failed and routes 0 and 1 succeeded then the error.errorMessage.payload object looks like this:
+          {
+            "results": 
+            {
+              "0": { }, 
+              "1": { } 
+            }, 
+            "failures": 
+            { 
+              "2": { }
+            }
+          }
+          -->
+          <set-variable variableName="successfulRouteIndexes" value="#[(error.errorMessage.payload.results pluck $$ as Number)]" doc:name="successfulRouteIndexes"/>
+          <set-variable variableName="failedRouteIndexes" value="#[(error.errorMessage.payload.failures pluck $$ as Number)]" doc:name="failedRouteIndexes"/>
+          <set-variable variableName="compensationFlows" value="#[vars.successfulRouteIndexes map vars.allCompensationFlows[$]]" doc:name="compensationFlows"/>
+          <logger level="ERROR" doc:name="EXCEPTION" message="Error within Check-In process"/>
+          <flow-ref name="compensate-successful-routes-of-check-in-by-pnr" doc:name="compensate-successful-routes-of-check-in-by-pnr"/>
+        </on-error-propagate>
+      </error-handler>
+    </try>
+    <os:store doc:name="OS: Store all data for associated PNR" key="#[vars.PNR]" objectStore="pnrObjectStore">
+      <os:value><![CDATA[#[{
+        checkIn: vars.checkIn,
+        ticket: vars.ticket
+      }]]]></os:value>
+    </os:store>
+    <choice doc:name="Bags?">
+      <when expression="#[vars.checkIn.numBags &gt; 0]">
+        <ee:transform doc:name="Build paymentID object">
+          <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+              output application/json
+              var paypalReturn = payload['2'].payload
+              ---
+              {
+                  paymentID: paypalReturn.paymentID
+              }]]></ee:set-payload>
+          </ee:message>
+        </ee:transform>
+      </when>
+      <otherwise>
+        <flow-ref doc:name="get-boarding-pass" name="get-boarding-pass"/>
+      </otherwise>
+    </choice>
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+    <logger level="INFO" message="Checked-in by PNR" doc:name="END"/>
+  </flow>
+  <flow name="compensate-successful-routes-of-check-in-by-pnr">
+    <validation:any doc:name="compensationFlows is possibly empty collection">
+      <validation:is-empty-collection values="#[vars.compensationFlows]"/>
+      <validation:is-not-empty-collection values="#[vars.compensationFlows]"/>
+    </validation:any>
+    <foreach collection="#[vars.compensationFlows]">
+      <logger level="INFO" message="#['About to compensate successful route by calling compensation flow ' ++ payload]"/>
+      <flow-ref name="#[payload]" doc:name="Compensation flow"/>
+    </foreach>
+  </flow>
+  <flow name="validate-ticket-passport-matches">
+    <validation:is-not-blank-string value="#[vars.checkIn.lastName]" doc:name="checkIn.lastName"/>
+    <try doc:name="Try: Validate Data">
+      <flow-ref name="get-ticket-by-pnr" doc:name="get-ticket-by-pnr"/>
+      <validation:is-true doc:name="Validation: ticketHolderLastName == lastName" expression="#[vars.ticket.ticketHolderLastName == vars.checkIn.lastName]">
+        <error-mapping targetType="APP:LASTNAME_MISMATCH"/>
+      </validation:is-true>
+      <flow-ref name="get-passenger-data-by-passport" target="passenger" doc:name="get-passenger-data-by-passport"/>
+      <validation:is-true doc:name="Validation: passenger lastName == lastName" expression="#[vars.passenger.lastName == vars.checkIn.lastName]">
+        <error-mapping targetType="APP:LASTNAME_MISMATCH"/>
+      </validation:is-true>
+      <error-handler>
+        <on-error-propagate>
+          <logger level="ERROR" message="lastName mismatches with lastName returned from get-ticket-by-pnr or get-passenger-data-by-passport" doc:name="EXCEPTION"/>
+        </on-error-propagate>
+      </error-handler>
+    </try>
+    <!-- return normally if match, raise error if mismatch -->
+  </flow>
+  <flow name="get-ticket-by-pnr">
+    <validation:is-not-blank-string value="#[vars.PNR]" doc:name="PNR"/>
+    <ee:transform doc:name="Build params var map for retry params">
+      <ee:variables>
+        <ee:set-variable variableName="params"><![CDATA[{
+          invokeWebApiFlow:     "flights-management-sapi-get-ticket-by-pnr",
+          maxRetries:           2,
+          millisBetweenRetries: 500,
+          namespace:            "HTTP"
+        }]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <flow-ref name="invoke-web-api-until-successful" doc:name="invoke-web-api-until-successful"/>
+    <validation:is-true expression="#[vars.successful]" message="Error getting ticket data" doc:name="Successful else raise EXT:CANT_RETRIEVE_TICKET_DATA">
+      <error-mapping targetType="EXT:CANT_RETRIEVE_TICKET_DATA"/>
+    </validation:is-true>
+    <logger level="INFO" message="After invoking Flights Management SAPI get ticket"/>
+    <validation:is-not-null value="#[vars.ticket]" doc:name="ticket"/>
+  </flow>
+  <flow name="flights-management-sapi-get-ticket-by-pnr">
+    <validation:is-not-blank-string value="#[vars.PNR]" doc:name="PNR"/>
+    <http:request config-ref="flightsManagementSapiConfig" method="GET" path="/tickets/{PNR}" target="ticket" doc:name="FMS Get Ticket" doc:id="2aaf810a-33e3-476d-9080-28ce3465dc2a">
+      <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"PNR" : vars.PNR
+}]]]></http:uri-params>
+    </http:request>
+    <validation:is-not-null value="#[vars.ticket]" doc:name="ticket"/>
+  </flow>
+  <flow name="get-passenger-data-by-passport">
+    <validation:is-not-blank-string value="#[vars.ticket.ticketHolderPassPortNo]" doc:name="ticket.ticketHolderPassPortNo"/>
+    <ee:cache cachingStrategy-ref="passengerCachingStrategy">
+      <ee:transform doc:name="Build params var map for retry params">
+        <ee:variables>
+          <ee:set-variable variableName="params"><![CDATA[{
+              invokeWebApiFlow:     "passenger-data-sapi-get-passengers",
+              maxRetries:           2,
+              millisBetweenRetries: 500,
+              namespace:            "HTTP"
+            }]]></ee:set-variable>
+        </ee:variables>
+      </ee:transform>
+      <flow-ref name="invoke-web-api-until-successful" doc:name="invoke-web-api-until-successful"/>
+      <validation:is-true expression="#[vars.successful]" message="Error getting passenger details" doc:name="Successful else raise EXT:CANT_GET_PASSENGER_DATA">
+        <error-mapping targetType="EXT:CANT_GET_PASSENGER_DATA"/>
+      </validation:is-true>
+      <logger level="INFO" message="After invoking Passenger Data SAPI get passengers" doc:name="After API call"/>
+    </ee:cache>
+    <validation:is-not-null value="#[payload]" doc:name="passenger"/>
+    <error-handler>
+      <on-error-propagate type="EXT:CANT_GET_PASSENGER_DATA">
+        <logger level="ERROR" message="Error calling external dependency"/>
+      </on-error-propagate>
+    </error-handler>
+  </flow>
+  <flow name="passenger-data-sapi-get-passengers">
+    <validation:is-not-blank-string value="#[vars.ticket.ticketHolderPassPortNo]" doc:name="ticket.ticketHolderPassPortNo"/>
+    <http:request config-ref="passengerDataSapiConfig" method="GET" path="/passengers" doc:id="c08b805e-bf4c-49ec-a56d-d5edd5c90f5d">
+      <http:query-params><![CDATA[#[output application/java
+---
+{
+	"passportNo" : vars.ticket.ticketHolderPassPortNo
+}]]]></http:query-params>
+    </http:request>
+    <validation:is-not-null value="#[payload]" doc:name="passenger"/>
+  </flow>
+  <flow name="check-in-flights-management">
+    <validation:is-not-blank-string value="#[vars.PNR]" doc:name="PNR"/>
+    <validation:is-not-blank-string value="#[vars.checkIn.lastName]" doc:name="checkIn.lastName"/>
+    <validation:is-number value="#[vars.checkIn.numBags]" numberType="INTEGER" minValue="0" doc:name="checkIn.numBags"/>
+    <ee:transform doc:name="Build CheckIn object">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+          output application/json
+          ---
+          {
+            lastName: vars.checkIn.lastName,
+            numBags:  vars.checkIn.numBags
+          }]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <logger level="INFO" message="Sending CheckIn object to Flights Management SAPI checkIn" doc:name="BEFORE REQUEST"/>
+    <ee:transform doc:name="Build params var map for retry params">
+      <ee:variables>
+        <ee:set-variable variableName="params"><![CDATA[{
+            invokeWebApiFlow:     "flights-management-sapi-update-checkins-by-pnr",
+            maxRetries:           2,
+            millisBetweenRetries: 500,
+            namespace:            "HTTP"
+          }]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <flow-ref name="invoke-web-api-until-successful" doc:name="invoke-web-api-until-successful"/>
+    <validation:is-true expression="#[vars.successful]" doc:name="Successful else raise CANT_UPDATE_CHECKINS">
+      <error-mapping targetType="APP:CANT_UPDATE_CHECKINS"/>
+    </validation:is-true>
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+    <error-handler>
+      <on-error-propagate type="APP:CANT_UPDATE_CHECKINS">
+        <logger level="ERROR" message="Error calling external dependency"/>
+      </on-error-propagate>
+    </error-handler>
+  </flow>
+  <flow name="flights-management-sapi-update-checkins-by-pnr">
+    <validation:is-not-blank-string value="#[vars.PNR]" doc:name="PNR"/>
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+    <http:request config-ref="flightsManagementSapiConfig" method="PUT" path="/tickets/{PNR}/checkin" doc:id="f7bfb40c-badd-43b9-9caf-d9603fbc1fee">
+      <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"PNR" : vars.PNR
+}]]]></http:uri-params>
+    </http:request>
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+  </flow>
+  <flow name="check-in-flights-management-compensate">
+    <logger level="INFO" message="Must compensate for successful check-in-flights-management"/>
+  </flow>
+  <flow name="register-passenger-data">
+    <validation:is-not-blank-string value="#[vars.passenger.loyaltyNo]" doc:name="passenger.loyaltyNo"/>
+    <validation:is-not-blank-string value="#[vars.ticket.destination]" doc:name="ticket.destination"/>
+    <validation:is-not-blank-string value="#[vars.ticket.flightDate]" doc:name="ticket.flightDate"/>
+    <validation:is-not-blank-string value="#[vars.ticket.flightNo]" doc:name="ticket.flightNo"/>
+    <validation:is-not-blank-string value="#[vars.ticket.origin]" doc:name="ticket.origin"/>
+    <ee:transform doc:name="Build Flight object">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+          output application/json
+          ---
+          {
+            "date_checkin": now() >> "UTC",
+            "destination":  vars.ticket.destination,
+            "flight_date":  vars.ticket.flightDate,
+            "flight_no":    vars.ticket.flightNo,
+            "origin":       vars.ticket.origin
+          }]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <logger level="INFO" message="Sending Flight object to Passenger Data system" doc:name="BEFORE REQUEST"/>
+    <ee:transform doc:name="Build params var map for retry params">
+      <ee:variables>
+        <ee:set-variable variableName="params"><![CDATA[{
+            invokeWebApiFlow:     "passenger-data-sapi-create-flight-by-lno",
+            maxRetries:           2,
+            millisBetweenRetries: 500,
+            namespace:            "HTTP"
+          }]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <flow-ref name="invoke-web-api-until-successful" doc:name="invoke-web-api-until-successful"/>
+    <validation:is-true expression="#[vars.successful]" doc:name="Successful else raise CANT_CREATE_PASSENGER_FLIGHT">
+      <error-mapping targetType="APP:CANT_CREATE_PASSENGER_FLIGHT"/>
+    </validation:is-true>
+    <logger level="INFO" message="After invoking Passenger Data SAPI create flight" doc:name="AFTER REQUEST"/>
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+    <error-handler>
+      <on-error-propagate type="APP:CANT_CREATE_PASSENGER_FLIGHT">
+        <logger level="ERROR" message="Error calling external dependency"/>
+      </on-error-propagate>
+    </error-handler>
+  </flow>
+  <flow name="passenger-data-sapi-create-flight-by-lno">
+    <validation:is-not-blank-string value="#[vars.passenger.loyaltyNo]" doc:name="passenger.loyaltyNo"/>
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+    <http:request config-ref="passengerDataSapiConfig" method="POST" path="/passengers/{LNO}/flights" doc:id="14266fbe-0b49-4094-a1aa-cde475217d4b">
+      <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"LNO" : vars.passenger.loyaltyNo
+}]]]></http:uri-params>
+    </http:request>
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+  </flow>
+  <flow name="register-passenger-data-compensate">
+    <logger level="INFO" message="Must compensate for successful register-passenger-data"/>
+  </flow>
+  <flow name="create-payment-for-bags">
+    <validation:is-number value="#[vars.checkIn.numBags]" numberType="INTEGER" minValue="0" doc:name="checkIn.numBags"/>
+    <validation:is-number value="#[p('app.bagRate') as Number]" numberType="DOUBLE" minValue="0" doc:name="app.bagRate property"/>
+    <ee:transform doc:name="Create PaymentCreate object">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+          output application/json
+          var numBags = vars.checkIn.numBags
+          var bagRate = p("app.bagRate") as Number
+          ---
+          {
+            description: "Check-In of $(numBags) bags at USD $(bagRate) each.",
+            amount:      bagRate*numBags
+          }]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <logger level="INFO" message="Sending PaymentCreate Object to Paypal SAPI" doc:name="BEFORE REQUEST"/>
+    <ee:transform doc:name="Build params var map for retry params">
+      <ee:variables>
+        <ee:set-variable variableName="params"><![CDATA[{
+            invokeWebApiFlow:     "pay-pal-sapi-create-payment",
+            maxRetries:           2,
+            millisBetweenRetries: 500,
+            namespace:            "HTTP"
+          }]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <flow-ref name="invoke-web-api-until-successful" doc:name="invoke-web-api-until-successful"/>
+    <validation:is-true expression="#[vars.successful]" doc:name="Successful else raise CANT_CREATE_PAYMENT">
+      <error-mapping targetType="APP:CANT_CREATE_PAYMENT"/>
+    </validation:is-true>
+    <logger level="INFO" message="After invoking PayPal SAPI create payment" doc:name="AFTER REQUEST"/>
+    <error-handler>
+      <on-error-propagate type="APP:CANT_CREATE_PAYMENT">
+        <logger level="ERROR" message="Error calling external dependency"/>
+      </on-error-propagate>
+    </error-handler>
+  </flow>
+  <flow name="pay-pal-sapi-create-payment">
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+    <http:request config-ref="paypalSapiConfig" method="POST" path="/payments" doc:id="32f56c95-af13-43da-abc9-8bbcbd2c7d75"/>
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+  </flow>
+  <flow name="create-payment-for-bags-compensate">
+    <logger level="INFO" message="Must compensate for successful create-payment-for-bags"/>
+  </flow>
+  <flow name="payment-approval-by-pnr">
+    <tracing:set-logging-variable variableName="PNR" value="#[vars.PNR default '']" doc:name="Set PNR tracing var"/>
+    <logger level="INFO" message="#['Approving payment by PNR: ' ++ (vars.PNR default '')]" doc:name="START"/>
+    <validation:is-not-blank-string value="#[vars.PNR]" message="PNR is missing" doc:name="PNR else raise EXT:BAD_REQUEST">
+      <error-mapping targetType="EXT:BAD_REQUEST"/>
+    </validation:is-not-blank-string>
+    <validation:is-not-blank-string value="#[payload.payerID]" message="Payer ID is missing" doc:name="payerID else raise EXT:BAD_REQUEST">
+      <error-mapping targetType="EXT:BAD_REQUEST"/>
+    </validation:is-not-blank-string>
+    <validation:is-not-blank-string value="#[payload.paymentID]" message="Payment ID is missins" doc:name="paymentID else raise EXT:BAD_REQUEST">
+      <error-mapping targetType="EXT:BAD_REQUEST"/>
+    </validation:is-not-blank-string>
+    <os:contains key="#[vars.PNR]" target="existsPNR" objectStore="pnrObjectStore" doc:name="PNR data exists"/>
+    <validation:is-true expression="#[vars.existsPNR]" message="PNR check-in expired for this passenger. Passenger needs to check in again." doc:name="PNR exists else raise EXT:BAD_REQUEST">
+      <error-mapping targetType="EXT:BAD_REQUEST"/>
+    </validation:is-true>
+    <set-variable variableName="payerID" value="#[output application/json --- {payerID: payload.payerID}]" doc:name="Build PayerID object"/>
+    <logger level="INFO" message="Sending PayerID object to Paypal SAPI to approve payment: #[vars.payerID]" doc:name="BEFORE REQUEST"/>
+    <flow-ref name="update-approvals" doc:name="update-approvals"/>
+    <flow-ref doc:name="get-boarding-pass" name="get-boarding-pass"/>
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+    <logger level="INFO" message="Approved payment by PNR" doc:name="END"/>
+  </flow>
+  <flow name="update-approvals">
+    <validation:is-not-blank-string value="#[payload.paymentID]" doc:name="paymentID"/>
+    <validation:is-not-null value="#[vars.payerID]" doc:name="payerID"/>
+    <ee:transform doc:name="Build params var map for retry params">
+      <ee:variables>
+        <ee:set-variable variableName="params"><![CDATA[{
+            invokeWebApiFlow:     "pay-pal-sapi-update-approvals-by-payment-id",
+            maxRetries:           2,
+            millisBetweenRetries: 500,
+            namespace:            "HTTP"
+          }]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <flow-ref name="invoke-web-api-until-successful" doc:name="invoke-web-api-until-successful"/>
+    <validation:is-true expression="#[vars.successful]" doc:name="Successful else raise CANT_CREATE_PAYMENT">
+      <error-mapping targetType="APP:CANT_CREATE_PAYMENT"/>
+    </validation:is-true>
+    <logger level="INFO" message="After invoking PayPal SAPI update approvals" doc:name="AFTER REQUEST"/>
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+    <error-handler>
+      <on-error-propagate type="APP:CANT_CREATE_PAYMENT">
+        <logger level="ERROR" message="Error calling external dependency"/>
+      </on-error-propagate>
+    </error-handler>
+  </flow>
+  <flow name="pay-pal-sapi-update-approvals-by-payment-id">
+    <validation:is-not-blank-string value="#[payload.paymentID]" doc:name="paymentID"/>
+    <validation:is-not-null value="#[vars.payerID]" doc:name="payerID"/>
+    <http:request config-ref="paypalSapiConfig" method="PUT" path="/payments/{PaymentID}/approval" doc:id="24f7105a-3034-4603-a6a6-d5610080374f">
+      <error-mapping sourceType="HTTP:BAD_REQUEST" targetType="APP:INVALID_PAYMENT"/>
+      <http:body><![CDATA[#[vars.payerID]]]></http:body>
+      <http:uri-params><![CDATA[#[output application/java
+---
+{
+	"PaymentID" : payload.paymentID
+}]]]></http:uri-params>
+    </http:request>
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+  </flow>
+  <flow name="get-boarding-pass">
+    <validation:is-not-blank-string value="#[vars.PNR]" doc:name="PNR"/>
+    <os:retrieve key="#[vars.PNR]" objectStore="pnrObjectStore" doc:name="OS: Get data associated with PNR">
+      <os:default-value>#[{}]</os:default-value>
+    </os:retrieve>
+    <logger level="INFO" message="Finished retrieving data associated with PNR to build boarding pass from Object Store" doc:name="FLOW"/>
+    <validation:is-not-null value="#[payload]" doc:name="payload else raise NO_PNR">
+      <error-mapping targetType="APP:NO_PNR"/>
+    </validation:is-not-null>
+    <ee:transform doc:name="Build BoardingPass object">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+          output application/json
+          var numBags = if (payload.checkIn.numBags > 0) payload.checkIn.numBags else 0
+          ---
+          {
+            PNR: vars.PNR,
+            lastName: payload.ticket.ticketHolderLastName,
+            airportArrive: payload.ticket.destination,
+            airportDepart: payload.ticket.origin,
+            bagsCount: numBags,
+            flight: payload.ticket.flightNo,
+            flightDate: payload.ticket.flightDate,
+            depart: payload.ticket.depart,
+            boarding: payload.ticket.boarding,
+            class: payload.ticket.class,  
+            gate: payload.ticket.gate,
+            seat: payload.ticket.seat
+          }]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <os:remove doc:name="OS: Clear data for this PNR" key="#[vars.PNR]" objectStore="pnrObjectStore"/>
+    <validation:is-not-null value="#[payload]" doc:name="payload"/>
+    <error-handler>
+      <on-error-propagate type="APP:NO_PNR">
+        <logger level="ERROR" message="PNR data does not exist even though it should!" doc:name="EXCEPTION"/>
+        <set-payload value="#[{message: 'PNR data does not exist for passenger even though it should.'}]" doc:name="error"/>
+        <set-variable value="500" doc:name="httpStatus" variableName="httpStatus"/>
+      </on-error-propagate>
+    </error-handler>
+  </flow>
+</mule>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:tracing="http://www.mulesoft.org/schema/mule/tracing" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="  http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd  http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd    http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd  http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd  http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd http://www.mulesoft.org/schema/mule/tracing http://www.mulesoft.org/schema/mule/tracing/current/mule-tracing.xsd">
+  <!-- ... -->
+  <flow name="retrieve-cancellation-event">
+    <anypoint-mq:subscriber config-ref="amqConfig" destination="${anypoint.mq.destination}" acknowledgementMode="MANUAL" circuitBreaker="vmConnectCircuitBreaker" doc:name="Retrieve Flight Cancellation Notifications">
+      <reconnect-forever frequency="${anypoint.mq.reconnectIntervalMillis}"/>
+    </anypoint-mq:subscriber>
+    <tracing:with-correlation-id correlationId="#[attributes.properties.correlationId default correlationId]">
+      <try>
+        <logger level="INFO" message="#['Retrieve cancellation event from queue: $(attributes.properties.correlationId default ''). Message ID: $(attributes.messageId)']" doc:name="START"/>
+        <set-variable variableName="mqAckToken" value="#[attributes.ackToken]" doc:name="mqAckToken"/>
+        <ee:transform doc:name="Build cancelNotification for Mobile App Network">
+          <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+              output application/json
+              ---
+              {
+                pnr: payload.pnr,
+                lastName: payload.lastNameOfPassenger
+              }]]></ee:set-payload>
+          </ee:message>
+        </ee:transform>
+        <logger level="INFO" message="Sending flight cancellation notification to mobile application network" doc:name="BEFORE REQUEST"/>
+        <vm:publish doc:name="Mobile App Network" config-ref="mobileAppNetworkVMConfig" queueName="${vm.queue}"/>
+        <logger level="INFO" message="Finished sending cancel notification to mobile application network" doc:name="END"/>
+        <anypoint-mq:ack ackToken="#[vars.mqAckToken]" config-ref="amqConfig" doc:name="ACK"/>
+        <error-handler>
+          <on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" when="error.errorType.namespace == 'VM'">
+            <logger level="ERROR" message="Error publishing cancellation notification to Mobile App Network" doc:name="EXCEPTION"/>
+            <anypoint-mq:nack ackToken="#[vars.mqAckToken]" config-ref="amqConfig" doc:name="NACK"/>
+            <logger level="INFO" message="Publishing cancelled notification to dead letter queue" doc:name="BEFORE REQUEST"/>
+            <email:send doc:name="Notify Mobile App Network administrator" config-ref="emailSMTPConfig" fromAddress="${app.email}" subject="Alert: Failure to connect to Mobile App Network">
+              <email:to-addresses>
+                <email:to-address value="${app.mobile.network.email}"/>
+              </email:to-addresses>
+              <email:body>
+                <email:content><![CDATA[#["mobile-check-in-eapi from AnyAirline is reporting an error sending cancellation notifications to the Mobile App Network."]]]></email:content>
+              </email:body>
+            </email:send>
+          </on-error-propagate>
+          <on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" when="error.errorType.namespace == 'ANYPOINT-MQ'">
+            <logger level="ERROR" message="Error connecting to queue: ${anypoint.mq.destination}" doc:name="EXCEPTION"/>
+            <anypoint-mq:nack ackToken="#[vars.mqAckToken]" config-ref="amqConfig" doc:name="NACK"/>
+          </on-error-propagate>
+        </error-handler>
+      </try>
+    </tracing:with-correlation-id>
+  </flow>
+</mule>

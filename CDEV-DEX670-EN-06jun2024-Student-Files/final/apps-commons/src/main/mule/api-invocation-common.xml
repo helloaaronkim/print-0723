@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="  http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd   http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+  <!--
+  Invoke a web API until it is successful, driven by pauses between retries and a max number of retries.
+  Each individual invocation must be implemented in a flow passed to this flow and may use either http:request or a REST Connector.
+  If http:request is used then the namespace parameter must be 'HTTP', otherwise it must be the namespace of the REST Connector. 
+  
+  Usage:
+  
+  <import file="api-invocation-common.xml" doc:name="Import api-invocation-common.xml" />
+  
+  <flow ...>
+      <ee:transform>
+          <ee:variables>
+              <ee:set-variable variableName="params" ><![CDATA[{
+                  invokeWebApiFlow:     "invoke-web-api-once-with-http-request-or-rest-connector",
+                  maxRetries:           2,
+                  millisBetweenRetries: 500,
+                  namespace:            "HTTP"
+              }]]></ee:set-variable>
+          </ee:variables>
+      </ee:transform>
+      <flow-ref name="invoke-web-api-until-successful" doc:name="invoke-web-api-until-successful" />
+      
+      <set-payload value="#[if (vars.successful) payload else 'ERROR - NO RESPONSE']" />
+      <logger message="Received HTTP Response: #[payload]" />
+  </flow>
+  
+  <flow name="invoke-web-api-once-with-http-request-or-rest-connector">
+      <http:request method="GET" url="..." followRedirects="true" responseTimeout="500">
+          ...
+      </http:request>
+  </flow>
+  -->
+  <flow name="invoke-web-api-until-successful">
+    <!-- TODO: validate vars.params: invokeWebApiFlow, maxRetries, millisBetweenRetries, namespace -->
+    <set-variable variableName="invokeWebApiFlow" value="#[vars.params.invokeWebApiFlow]" doc:name="invokeWebApiFlow"/>
+    <set-variable variableName="maxRetries" value="#[((vars.params.maxRetries default 3) as Number)]" doc:name="maxRetries"/>
+    <set-variable variableName="millisBetweenRetries" value="#[((vars.params.millisBetweenRetries default 2000) as Number)]" doc:name="millisBetweenRetries"/>
+    <set-variable variableName="namespace" value="#[(vars.params.namespace default 'HTTP')]" doc:name="namespace"/>
+    <try>
+      <until-successful maxRetries="#[vars.maxRetries]" millisBetweenRetries="#[vars.millisBetweenRetries]">
+        <try>
+          <flow-ref name="#[vars.invokeWebApiFlow]" doc:name="vars.invokeWebApiFlow"/>
+          <set-variable variableName="successful" value="#[true]" doc:name="successful"/>
+          <error-handler>
+            <on-error-propagate when="#[(['TOO_MANY_REQUESTS','INTERNAL_SERVER_ERROR','SERVICE_UNAVAILABLE','TIMEOUT','CONNECTIVITY'] contains error.errorType.identifier)]" enableNotifications="false" logException="false">
+              <logger message="A presumably transient error occurred while invoking a web API (#[error.errorType.namespace ++ ':' ++ error.errorType.identifier ++ ' ' ++ error.description]) - triggering re-try" level="INFO"/>
+              <set-variable variableName="successful" value="#[false]" doc:name="successful"/>
+              <set-variable variableName="lastError" value="#[error]" doc:name="lastError"/>
+            </on-error-propagate>
+            <on-error-continue when="#[((error.errorType.namespace == vars.namespace) or (['EXPRESSION','STREAM_MAXIMUM_SIZE_EXCEEDED'] contains error.errorType.identifier))]" enableNotifications="true" logException="false">
+              <logger message="A permanent error occurred while invoking a web API (#[error.errorType.namespace ++ ':' ++ error.errorType.identifier ++ ' ' ++ error.description]) - giving up" level="ERROR"/>
+              <set-variable variableName="successful" value="#[false]" doc:name="successful"/>
+              <set-variable variableName="lastError" value="#[error]" doc:name="lastError"/>
+            </on-error-continue>
+            <on-error-propagate enableNotifications="false" logException="true">
+              <logger message="An unknown error, which is assumed to be transient, occurred while invoking a web API (#[error.errorType.namespace ++ ':' ++ error.errorType.identifier ++ ' ' ++ error.description]) - triggering re-try" level="INFO"/>
+              <set-variable variableName="successful" value="#[false]" doc:name="successful"/>
+              <set-variable variableName="lastError" value="#[error]" doc:name="lastError"/>
+            </on-error-propagate>
+          </error-handler>
+        </try>
+      </until-successful>
+      <error-handler>
+        <on-error-continue enableNotifications="true" logException="false">
+          <logger message="Exhausted re-tries invoking a web API (#[error.errorType.namespace ++ ':' ++ error.errorType.identifier ++ ' ' ++ error.description]) - giving up" level="WARN"/>
+          <set-variable variableName="successful" value="#[false]" doc:name="successful"/>
+        </on-error-continue>
+      </error-handler>
+    </try>
+    <logger message="Received response from #[if (vars.successful) 'successful' else 'FAILED'] web API invocation: #[payload]" level="INFO"/>
+    <!-- TODO validate payload and vars.successful -->
+  </flow>
+</mule>

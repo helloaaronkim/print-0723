@@ -1,0 +1,12 @@
+// Copyright (C) MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+//
+// The software in this package is published under the terms of the
+// Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+// a copy of which has been included with this distribution in the LICENSE.txt file.
+= Additional Files
+
+Useful files for the software solutions based on the AnyAirline case study:
+
+* `settings.xml.template`: Template for Maven settings file that gives access to MuleSoft Maven repositories. Contains placeholders for credentials: create `settings.xml` replacing these placeholders and copy/link to `$HOME/.m2/settings.xml`.
+* `create-settings-xml-from-template.sh`: Script that creates `settings.xml` by combining `settings.xml.template` and credentials given on the command-line.
+* `postman`: A directory of postman collections for interacting with AnyAirline APIs.

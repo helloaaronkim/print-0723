@@ -1,0 +1,26 @@
+###
+# #%L
+# MuleSoft Training - Anypoint Platform Development: Level 2
+# %%
+# Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+# %%
+# The software in this package is published under the terms of the
+# Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+# a copy of which has been included with this distribution in the LICENSE.txt file.
+# #L%
+###
+# Client ID and Secret to send to invoked APIs with Client ID enforcement API policy 
+app:
+  client_id:     "![dJVs6+GuVopIZ/m4vcu39tETlPusurHvwyfNjORqmMLdRc7c8dXbCg==]"
+  client_secret: "![bPpW22GanskyfdzKJ2MUmla2Jdv7xcKYMg92iI6R57Ayu8Uhe7923A==]"
+  
+ftpserver:
+  password: "![QydAkBNy702fOQpqi30G4Q==]"
+  
+tls.keystore:
+  password:    "![ucbAFnF0v0FQKWPOKE5TCw==]"
+  keyPassword: "![ucbAFnF0v0FQKWPOKE5TCw==]"
+
+db:
+  user:     "![i01dFcBOm7s=]"
+  userpass: "![i01dFcBOm7s=]"

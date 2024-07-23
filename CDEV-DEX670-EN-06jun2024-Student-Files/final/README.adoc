@@ -1,0 +1,13 @@
+// Copyright (C) MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+//
+// The software in this package is published under the terms of the
+// Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+// a copy of which has been included with this distribution in the LICENSE.txt file.
+= Final Case Study Solution
+
+Complete, "final" solution to the AnyAirline case study.
+
+This is termed "final" because it addresses the requirements of this case study and implements its Solution Architecture.
+
+By contrast, each walkthrough is a focused extract of selected parts and aspects of this "final" solution.
+The walkthroughs therefore build towards this "final" solution.

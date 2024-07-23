@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the Creative 
+  	Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public 
+  	License, a copy of which has been included with this distribution in the 
+  	LICENSE.txt file.
+  #L% -->
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xsi:schemaLocation="  http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd    http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd  http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd  http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd">
+  <munit:config name="main-test-suite.xml"/>
+  <global-property name="env" value="unit-test"/>
+  <munit:test name="register-callback-happy-path-test" description="Test register-callback happy path">
+    <munit:behavior>
+      <flow-ref name="mock-register-for-cancellation-notifications-resp" doc:name="mock-register-for-cancellation-notifications-resp"/>
+      <flow-ref name="spy-register-for-cancellation-notifications" doc:name="spy-register-for-cancellation-notifications"/>
+    </munit:behavior>
+    <munit:execution>
+      <!-- no request payload as triggered by scheduler -->
+      <flow-ref name="register-callback" doc:name="register-callback"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(TestData::registerSOAPWSResp)]"/>
+    </munit:validation>
+  </munit:test>
+  <sub-flow name="mock-register-for-cancellation-notifications-resp">
+    <munit-tools:mock-when processor="flow-ref">
+      <munit-tools:with-attributes>
+        <munit-tools:with-attribute whereValue="register-for-cancellation-notifications" attributeName="name"/>
+      </munit-tools:with-attributes>
+      <munit-tools:then-return>
+        <munit-tools:payload value="#[output application/xml --- TestData::registerSOAPWSResp]"/>
+        <munit-tools:attributes value="#[{statusCode: 200}]"/>
+      </munit-tools:then-return>
+    </munit-tools:mock-when>
+  </sub-flow>
+  <sub-flow name="spy-register-for-cancellation-notifications">
+    <munit-tools:spy processor="flow-ref">
+      <munit-tools:with-attributes>
+        <munit-tools:with-attribute attributeName="name" whereValue="register-for-cancellation-notifications"/>
+      </munit-tools:with-attributes>
+      <munit-tools:before-call>
+        <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(TestData::registerSOAPWSRequ)]"/>
+      </munit-tools:before-call>
+    </munit-tools:spy>
+  </sub-flow>
+  <munit:test name="check-in-by-pnr-happy-path-test" description="Test check-in-by-pnr happy path">
+    <munit:behavior>
+      <set-variable variableName="resp" value="#[TestData::checkInSOAPWSTrueResp]" doc:name="resp"/>
+      <flow-ref name="mock-flights-wsc-check-in-resp" doc:name="mock-flights-wsc-check-in-resp"/>
+      <flow-ref name="spy-flights-wsc-check-in" doc:name="spy-flights-wsc-check-in"/>
+    </munit:behavior>
+    <munit:execution>
+      <flow-ref name="set-check-in-event" doc:name="set-check-in-event"/>
+      <flow-ref name="check-in-by-pnr" doc:name="check-in-by-pnr"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:assert-equals actual="#[payload]" expected="#[true]" doc:name="Payload true"/>
+    </munit:validation>
+  </munit:test>
+  <munit:test name="check-in-by-pnr-when-soap-ws-returns-false-test" description="Test check-in-by-pnr when CheckIn SOAP WS returns valid response but false">
+    <munit:behavior>
+      <set-variable variableName="resp" value="#[TestData::checkInSOAPWSFalseResp]" doc:name="resp"/>
+      <flow-ref name="mock-flights-wsc-check-in-resp" doc:name="mock-flights-wsc-check-in-resp"/>
+    </munit:behavior>
+    <munit:execution>
+      <flow-ref name="set-check-in-event" doc:name="set-check-in-event"/>
+      <flow-ref name="check-in-by-pnr" doc:name="check-in-by-pnr"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:assert-equals actual="#[payload]" expected="#[false]" doc:name="Payload false"/>
+    </munit:validation>
+  </munit:test>
+  <munit:test name="check-in-by-pnr-when-soap-ws-returns-garbage-test" description="Test check-in-by-pnr when CheckIn SOAP WS returns invalid response" expectedErrorType="APP:INVALID_CHECKIN_RESPONSE">
+    <munit:behavior>
+      <set-variable variableName="resp" value="#[TestData::checkInSOAPWSGarbageResp]" doc:name="resp"/>
+      <flow-ref name="mock-flights-wsc-check-in-resp" doc:name="mock-flights-wsc-check-in-resp"/>
+    </munit:behavior>
+    <munit:execution>
+      <flow-ref name="set-check-in-event" doc:name="set-check-in-event"/>
+      <flow-ref name="check-in-by-pnr" doc:name="check-in-by-pnr"/>
+    </munit:execution>
+  </munit:test>
+  <munit:test name="check-in-by-pnr-when-soap-ws-fails-test" description="Test check-in-by-pnr when CheckIn SOAP WS fails" expectedErrorType="EXT:CANT_CHECKIN">
+    <munit:behavior>
+      <munit-tools:mock-when processor="flow-ref">
+        <munit-tools:with-attributes>
+          <munit-tools:with-attribute attributeName="name" whereValue="flights-wsc-check-in"/>
+        </munit-tools:with-attributes>
+        <munit-tools:then-return>
+          <munit-tools:error typeId="MULE:SERVICE_UNAVAILABLE"/>
+        </munit-tools:then-return>
+      </munit-tools:mock-when>
+    </munit:behavior>
+    <munit:execution>
+      <flow-ref name="set-check-in-event" doc:name="set-check-in-event"/>
+      <flow-ref name="check-in-by-pnr" doc:name="check-in-by-pnr"/>
+    </munit:execution>
+  </munit:test>
+  <sub-flow name="mock-flights-wsc-check-in-resp">
+    <validation:is-not-null value="#[vars.resp]" doc:name="Required: vars.resp"/>
+    <munit-tools:mock-when processor="flow-ref">
+      <munit-tools:with-attributes>
+        <munit-tools:with-attribute attributeName="name" whereValue="flights-wsc-check-in"/>
+      </munit-tools:with-attributes>
+      <munit-tools:then-return>
+        <munit-tools:payload value="#[output application/xml --- vars.resp]"/>
+      </munit-tools:then-return>
+    </munit-tools:mock-when>
+  </sub-flow>
+  <sub-flow name="spy-flights-wsc-check-in">
+    <munit-tools:spy processor="flow-ref">
+      <munit-tools:with-attributes>
+        <munit-tools:with-attribute attributeName="name" whereValue="flights-wsc-check-in"/>
+      </munit-tools:with-attributes>
+      <munit-tools:before-call>
+        <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(TestData::checkInSOAPWSRequ)]"/>
+      </munit-tools:before-call>
+    </munit-tools:spy>
+  </sub-flow>
+  <sub-flow name="set-check-in-event">
+    <munit:set-event>
+      <munit:payload value="#[output application/json --- TestData::checkIn]"/>
+      <munit:variables>
+        <munit:variable key="PNR" value="#[TestData::pnr]"/>
+      </munit:variables>
+    </munit:set-event>
+  </sub-flow>
+  <munit:test name="get-ticket-by-pnr-happy-path-test" description="Test get-ticket-by-pnr happy path">
+    <munit:behavior>
+      <set-variable variableName="resp" value="#[TestData::getTicketSOAPWSOk1Resp]" doc:name="resp"/>
+      <flow-ref name="mock-flights-wsc-get-ticket-by-pnr-resp" doc:name="mock-flights-wsc-get-ticket-by-pnr-resp"/>
+      <flow-ref name="spy-flights-wsc-get-ticket-by-pnr" doc:name="spy-flights-wsc-get-ticket-by-pnr"/>
+    </munit:behavior>
+    <munit:execution>
+      <flow-ref name="set-get-ticket-event" doc:name="set-get-ticket-event"/>
+      <flow-ref name="get-ticket-by-pnr" doc:name="get-ticket-by-pnr"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(TestData::getTicketOk1Resp)]"/>
+    </munit:validation>
+  </munit:test>
+  <sub-flow name="mock-flights-wsc-get-ticket-by-pnr-resp">
+    <validation:is-not-null value="#[vars.resp]" doc:name="Required: vars.resp"/>
+    <munit-tools:mock-when processor="flow-ref">
+      <munit-tools:with-attributes>
+        <munit-tools:with-attribute attributeName="name" whereValue="flights-wsc-get-ticket-by-pnr"/>
+      </munit-tools:with-attributes>
+      <munit-tools:then-return>
+        <munit-tools:payload value="#[output application/xml --- vars.resp]"/>
+      </munit-tools:then-return>
+    </munit-tools:mock-when>
+  </sub-flow>
+  <sub-flow name="spy-flights-wsc-get-ticket-by-pnr">
+    <munit-tools:spy processor="flow-ref">
+      <munit-tools:with-attributes>
+        <munit-tools:with-attribute attributeName="name" whereValue="flights-wsc-get-ticket-by-pnr"/>
+      </munit-tools:with-attributes>
+      <munit-tools:before-call>
+        <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(TestData::getTicketSOAPWSRequ)]"/>
+      </munit-tools:before-call>
+    </munit-tools:spy>
+  </sub-flow>
+  <sub-flow name="set-get-ticket-event">
+    <munit:set-event>
+      <munit:payload value="#[null]"/>
+      <munit:variables>
+        <munit:variable key="PNR" value="#[TestData::pnr]"/>
+      </munit:variables>
+    </munit:set-event>
+  </sub-flow>
+  <munit:test name="deliver-flight-cancelled-event-happy-path-test" description="Test deliver-flight-cancelled-event happy path">
+    <munit:behavior>
+      <flow-ref name="mock-amq" doc:name="mock-amq"/>
+    </munit:behavior>
+    <munit:execution>
+      <flow-ref doc:name="set-cancellation-notification-event" name="set-cancellation-notification-event"/>
+      <flow-ref doc:name="deliver-flight-cancelled-event" name="deliver-flight-cancelled-event"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(TestData::flightCancelledEvent)]"/>
+    </munit:validation>
+  </munit:test>
+  <munit:test name="deliver-flight-cancelled-event-validation-failure" description="Test deliver-flight-cancelled-event validation failure">
+    <munit:behavior>
+      <flow-ref name="mock-amq" doc:name="mock-amq"/>
+      <munit-tools:mock-when processor="json:validate-schema">
+        <munit-tools:with-attributes>
+          <munit-tools:with-attribute whereValue="schemas/FlightCancelledEvent.schema.json" attributeName="schema"/>
+        </munit-tools:with-attributes>
+        <munit-tools:then-return>
+          <munit-tools:error typeId="XML-MODULE:SCHEMA_NOT_HONOURED"/>
+        </munit-tools:then-return>
+      </munit-tools:mock-when>
+    </munit:behavior>
+    <munit:execution>
+      <flow-ref doc:name="set-cancellation-notification-event" name="set-cancellation-notification-event"/>
+      <flow-ref doc:name="deliver-flight-cancelled-event" name="deliver-flight-cancelled-event"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:verify-call processor="anypoint-mq:publish" times="0"/>
+      <munit-tools:verify-call processor="flow-ref" times="1">
+        <munit-tools:with-attributes>
+          <munit-tools:with-attribute whereValue="send-to-vm-dlq" attributeName="name"/>
+        </munit-tools:with-attributes>
+      </munit-tools:verify-call>
+    </munit:validation>
+  </munit:test>
+  <munit:test name="deliver-flight-cancelled-event-transformation-failure" description="Test deliver-flight-cancelled-event transformation failure">
+    <munit:behavior>
+      <flow-ref name="mock-amq" doc:name="mock-amq"/>
+    </munit:behavior>
+    <munit:execution>
+      <flow-ref doc:name="set-invalid-cancellation-notification-event" name="set-invalid-cancellation-notification-event"/>
+      <flow-ref doc:name="deliver-flight-cancelled-event" name="deliver-flight-cancelled-event"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:verify-call processor="anypoint-mq:publish" times="0"/>
+      <munit-tools:verify-call processor="flow-ref" times="1">
+        <munit-tools:with-attributes>
+          <munit-tools:with-attribute whereValue="send-to-vm-dlq" attributeName="name"/>
+        </munit-tools:with-attributes>
+      </munit-tools:verify-call>
+    </munit:validation>
+  </munit:test>
+  <sub-flow name="set-cancellation-notification-event">
+    <munit:set-event>
+      <munit:payload value="#[output application/xml --- TestData::cancellationNotification]"/>
+      <munit:variables>
+        <munit:variable key="PNR" value="#[TestData::pnr]"/>
+      </munit:variables>
+    </munit:set-event>
+  </sub-flow>
+  <sub-flow name="set-invalid-cancellation-notification-event">
+    <munit:set-event>
+      <munit:payload value="#[output application/xml --- {any:'element'}]"/>
+      <munit:variables>
+        <munit:variable key="PNR" value="#[TestData::pnr]"/>
+      </munit:variables>
+    </munit:set-event>
+  </sub-flow>
+  <sub-flow name="mock-amq">
+    <munit-tools:mock-when processor="anypoint-mq:publish">
+      <munit-tools:then-return>
+        <munit-tools:payload value="#[output application/json --- TestData::flightCancelledEvent]"/>
+        <munit-tools:attributes value="#[['messageId':'123']]"/>
+      </munit-tools:then-return>
+    </munit-tools:mock-when>
+  </sub-flow>
+</mule>

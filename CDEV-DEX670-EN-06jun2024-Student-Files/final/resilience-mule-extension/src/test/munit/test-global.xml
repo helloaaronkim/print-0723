@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:resilience="http://www.mulesoft.org/schema/mule/resilience" xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools" xmlns:http="http://www.mulesoft.org/schema/mule/http" xsi:schemaLocation="         http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd          http://www.mulesoft.org/schema/mule/core      http://www.mulesoft.org/schema/mule/core/current/mule.xsd         http://www.mulesoft.org/schema/mule/munit     http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd         http://www.mulesoft.org/schema/mule/resilience http://www.mulesoft.org/schema/mule/resilience/current/mule-resilience.xsd          http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd      http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+  <http:listener-config name="httpListenerConfig">
+    <http:listener-connection host="0.0.0.0" port="${http.dynamic.port}"/>
+  </http:listener-config>
+  <flow name="test-http-resource-flow">
+    <http:listener allowedMethods="GET" path="/test" config-ref="httpListenerConfig">
+      <http:response statusCode="200"/>
+    </http:listener>
+    <set-payload value="flow response"/>
+  </flow>
+  <flow name="test-http-resource-error-flow">
+    <http:listener allowedMethods="GET" path="/error" config-ref="httpListenerConfig">
+      <http:response statusCode="500"/>
+    </http:listener>
+    <set-payload value="error response"/>
+  </flow>
+</mule>

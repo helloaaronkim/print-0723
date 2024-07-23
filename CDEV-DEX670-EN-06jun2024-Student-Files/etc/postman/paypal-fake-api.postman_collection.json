@@ -1,0 +1,135 @@
+{
+	"info": {
+		"_postman_id": "73b69a9b-2104-4d94-862a-ab126f3d64a0",
+		"name": "paypal-fake-api",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "88351"
+	},
+	"item": [
+		{
+			"name": "token - cloudhub",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"pm.environment.set(\"paypalAccessToken\", jsonData.access_token);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disabledSystemHeaders": {
+					"content-type": true
+				}
+			},
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "1929FHDUAL8392K9ABKSNMM",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "APP-80ANYAIRLINE8184JT3",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Accept-Language",
+						"value": "en_US",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/x-www-form-urlencoded",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "grant_type",
+							"value": "client_credentials",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://training-paypal-fake-api-sandbox-mjf1rw.5sc6y6-1.usa-e2.cloudhub.io/v1/oauth2/token",
+					"protocol": "https",
+					"host": [
+						"training-paypal-fake-api-sandbox-mjf1rw",
+						"5sc6y6-1",
+						"usa-e2",
+						"cloudhub",
+						"io"
+					],
+					"path": [
+						"v1",
+						"oauth2",
+						"token"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "payment - cloudhub",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{paypalAccessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"intent\": \"sale\",\n    \"payer\": {\n        \"payment_method\": \"paypal\"\n    },\n    \"transactions\": [\n        {\n            \"amount\": {\n                \"total\": \"80.00\",\n                \"currency\": \"USD\"\n            },\n            \"description\": \"Check-In Baggage.\",\n            \"custom\": \"ANYAIRLINE_90048630024435\",\n            \"invoice_number\": \"48787589673\",\n            \"payment_options\": {\n                \"allowed_payment_method\": \"INSTANT_FUNDING_SOURCE\"\n            },\n            \"soft_descriptor\": \"ANYAIRLINE BAGGAGE\"\n        }\n    ],\n    \"note_to_payer\": \"Be happy.\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://training-paypal-fake-api-sandbox-mjf1rw.5sc6y6-1.usa-e2.cloudhub.io/v1/payments/payment",
+					"protocol": "https",
+					"host": [
+						"training-paypal-fake-api-sandbox-mjf1rw",
+						"5sc6y6-1",
+						"usa-e2",
+						"cloudhub",
+						"io"
+					],
+					"path": [
+						"v1",
+						"payments",
+						"payment"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

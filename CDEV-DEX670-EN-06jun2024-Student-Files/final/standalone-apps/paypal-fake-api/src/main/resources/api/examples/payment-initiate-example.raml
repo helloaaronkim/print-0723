@@ -1,0 +1,23 @@
+#%RAML 1.0 NamedExample
+{
+  "intent":"sale",
+  "payer":{
+    "payment_method":"paypal"
+  },
+  "transactions":[
+    {
+      "amount":{
+        "total":"80.00",
+        "currency":"USD"
+      },
+      "description": "Check-In Baggage.",
+      "custom": "ANYAIRLINE_90048630024435",
+      "invoice_number": "48787589673",
+      "payment_options":{
+        "allowed_payment_method":"INSTANT_FUNDING_SOURCE"
+      },
+      "soft_descriptor":"ANYAIRLINE BAGGAGE"
+    }
+  ],
+  "note_to_payer":"Contact us for any questions on your order."
+}

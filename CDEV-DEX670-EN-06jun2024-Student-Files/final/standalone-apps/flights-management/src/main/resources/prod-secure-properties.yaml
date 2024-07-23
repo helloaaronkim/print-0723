@@ -1,0 +1,17 @@
+###
+# #%L
+# MuleSoft Training - Anypoint Platform Development: Level 2
+# %%
+# Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+# %%
+# The software in this package is published under the terms of the
+# Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+# a copy of which has been included with this distribution in the LICENSE.txt file.
+# #L%
+###
+tls.keystore:
+  password:    "![ucbAFnF0v0FQKWPOKE5TCw==]"
+  keyPassword: "![ucbAFnF0v0FQKWPOKE5TCw==]"
+anypoint.mq:
+  client_id:     "![XaCQv7COz4j1s2du3psnaMRrrM1wOt37av6cUTq+oTjA/DT3bz1Dmw==]"
+  client_secret: "![JlxbVKwgsYXWjjiQIclOusfPEYxgu+mvIIl29DCZR4cEEvHYOBjsBg==]"

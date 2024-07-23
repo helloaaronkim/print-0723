@@ -1,0 +1,55 @@
+// Copyright (C) MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+//
+// The software in this package is published under the terms of the
+// Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+// a copy of which has been included with this distribution in the LICENSE.txt file.
+= Walkthroughs (WTs)
+
+Solutions, and a few starters, for the WTs of this course.
+
+Each WT may work on more than one Mule app, library, module, and the like, and a WT's starter/solution may therefore comprise more than one project.
+The directory structure reflects this: there is a directory for each WT solution and starter, which contains sub-directories for each WT project belonging to the solution or starter for that WT.
+
+Each WT project is a focused extract of selected parts and aspects of the "final" solution to the case study.
+It is _not_ the case that the sum of all WT solutions is identical to the final solution: WTs omit too much detail for that (detail that is unneccessary for the WT but important for the final solution).
+
+Because each WT project is extracted from the final solution, it typically contains slightly more features than the respective WT explicitly asks for.
+In particular, all WT projects are enabled for multiple deployment environments (`dev`, `test`, and `prod`), use encrypted properties where appropriate, and are also integrated in the Maven build structure of the overall solution continuous integration (CI) build (see below).
+
+The `bom/pom.xml` files found in the WT directories are all identical and are copies of AnyAirline's BOM. Like real-world BOMs, `bom/pom.xml` performs management of _all_ dependencies and plugins tested and supported by AnyAirline, thereby defaulting the version of these dependencies and plugins. This means that `bom/pom.xml` manages many more dependencies and plugins than are needed in any given WT project. This is absolutely fine and is, in fact, how BOMs are typically used: The dependencies and plugins managed in the BOM but not used in a given WT project can just be ignored.
+(Please note that the `bom/pom.xml` files are copied to the WT directories by the overall solution build: do not edit these files!)
+
+All WT directories also contain their own `parent-pom/pom.xml`, along-side the `bom/pom.xml`, so that they are self-contained.
+Earlier WTs build up and mature the `parent-pom/pom.xml`, and so these files differ between these earlier WTs.
+Later WTs all use identical, mature, reusable `parent-pom/pom.xml` files.
+
+Each WT project is integrated into the overall solution CI build, but can also be used by students in isolation, as a self-contained project.
+The overall solution CI build is implemented by `pom-ci.xml` in each WT project, while a simpler build, more in-line with how students may build the WT project as part of the respective WT, is implemented by `pom.xml`.
+Both types of builds can be executed with `build.sh` in each WT project, which relies on `parent-pom/pom.xml` and `bom/pom.xml` in the (parent) WT directory, and also on `settings.xml` in the (parent) WT directory symlinked to the solutions-wide `../etc/settings.xml` (which must therefore have been link:../etc/README.adoc[created previously]).
+
+To make the build of a WT project not just _similar_ but _identical_ to how that project is built in a given WT, edit that project's `pom.xml` and `parent-pom/pom.xml` (in its parent WT directory) following the `students:`-instructions in each file.
+
+Specifically, to build a given WT project, navigate to that project's directory and then (`s...5` denotes the secure properties encryption key):
+
+* To build a WT project as part of the overall solution CI build, using `pom-ci.xml` and the solutions-wide `../etc/settings.xml`:
++
+[source,bash]
+----
+./build.sh s...5 true
+----
++
+* To build a WT project in isolation, similarly to how a student would build the project in the respective WT, using `pom.xml` and the WT-local `settings.xml`:
++
+[source,bash]
+----
+./build.sh s...5
+----
++
+* To build a WT project in isolation, exactly how a student would build the project in the respective WT, using `pom.xml` and the global `settings.xml`:
+** First edit `pom.xml` and `parent-pom/pom.xml` (in its parent directory) following the `students:`-instructions in each file.
+** Then execute
++
+[source,bash]
+----
+mvn clean verify -U -Dencrypt.key=s...5
+----

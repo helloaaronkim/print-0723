@@ -1,0 +1,32 @@
+#%RAML 1.0 SecurityScheme
+# Copyright (C) MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+#
+# The software in this package is published under the terms of the
+# Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+# a copy of which has been included with this distribution in the LICENSE.txt file.
+
+description: |
+  OAuth 2.0 for authenticating Paypal requests.
+type: OAuth 2.0
+describedBy:
+  headers: 
+    Content-Type:
+      type: string
+      enum: ['application/json']
+    Authorization:
+      description: Used to send a valid OAuth 2 access token.
+      type: string
+      pattern: ^Bearer [A-Z0-9]+$
+  responses:
+    401:
+      description: |
+          Bad or expired token. This can happen if the user or Paypal
+          revoked or expired an access token. To fix, re-authenticate
+          the client application.
+    403:
+      description: |
+          Bad OAuth request (wrong consumer key, bad nonce, expired
+          timestamp...). Unfortunately, re-authenticating the user won't help here.
+settings:
+  accessTokenUri: v1/oauth2/token
+  authorizationGrants: [client_credentials]

@@ -1,0 +1,104 @@
+{
+	"info": {
+		"_postman_id": "7224645a-a8bc-4dce-abe0-c1022d22646e",
+		"name": "passenger-data-sapi",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "88351"
+	},
+	"item": [
+		{
+			"name": "passengers by passportNo - cloudhub",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{pdsapi_client_secret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{pdsapi_client_id}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://tngaa-passenger-data-sapi-dev-9yj2rh.rajrd4-2.usa-e1.cloudhub.io/api/v1/passengers?passportNo=P3JR0BZ2OY",
+					"protocol": "https",
+					"host": [
+						"tngaa-passenger-data-sapi-dev-9yj2rh",
+						"rajrd4-2",
+						"usa-e1",
+						"cloudhub",
+						"io"
+					],
+					"path": [
+						"api",
+						"v1",
+						"passengers"
+					],
+					"query": [
+						{
+							"key": "passportNo",
+							"value": "P3JR0BZ2OY"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "passengers by passportNo(no cache) - cloudhub",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{pdsapi_client_secret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{pdsapi_client_id}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://tngaa-passenger-data-sapi-dev-9yj2rh.rajrd4-2.usa-e1.cloudhub.io/api/v1/passengers?passportNo=P3JR0BZ2OY&X-CACHE-INVALIDATE=invalidate",
+					"protocol": "https",
+					"host": [
+						"tngaa-passenger-data-sapi-dev-9yj2rh",
+						"rajrd4-2",
+						"usa-e1",
+						"cloudhub",
+						"io"
+					],
+					"path": [
+						"api",
+						"v1",
+						"passengers"
+					],
+					"query": [
+						{
+							"key": "passportNo",
+							"value": "P3JR0BZ2OY"
+						},
+						{
+							"key": "X-CACHE-INVALIDATE",
+							"value": "invalidate"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

@@ -1,0 +1,12 @@
+// Copyright (C) MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+//
+// The software in this package is published under the terms of the
+// Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+// a copy of which has been included with this distribution in the LICENSE.txt file.
+= Executables
+
+Useful executables for the software solutions based on the AnyAirline case study:
+
+* `create-keystore-with-client-keypair-and-export-pub-key-cert.sh`: Script to create an RSA public/private keypair for HTTPS clients to an HTTPS server (such as a Private Space) that performs TLS mutual auth. Stores the keypair in a PKCS12 keystore to be used by the HTTPS client, and exports a PEM certificate with the public key to be used by the HTTPS server to authenticate the client certificate. See the script for details.
+* `create-keystore-with-server-keypair-and-export-pub-key-cert-and-client-truststore`: Script to create a keystore for any app with a self-signed cert in src/main/resources and a corresponding truststore in src/test/resources if clients want it
+* `secure-properties-tool.jar`: MuleSoft utility to encrypt property values for Mule secure properties files. Run with `java -jar secure-properties-tool.jar ...`.

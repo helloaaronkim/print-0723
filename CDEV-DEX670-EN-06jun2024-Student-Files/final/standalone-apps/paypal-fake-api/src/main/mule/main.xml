@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="  http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd  http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd  http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd  http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd  http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd  ">
+  <!--
+  curl -ik https://127.0.0.1:8081/v1/oauth2/token -d "grant_type=client_credentials" -u 'APP-80ANYAIRLINE8184JT3:1929FHDUAL8392K9ABKSNMM'
+  
+  curl -ik https://127.0.0.1:8081/v1/payments/payment -H 'Content-Type: application/json' -d '{ "intent":"sale", "payer":{ "payment_method":"paypal" }, "transactions":[ { "amount":{ "total":"80.00", "currency":"USD" }, "description": "Check-In Baggage.", "custom": "ANYAIRLINE_90048630024435", "invoice_number": "48787589673", "payment_options":{ "allowed_payment_method":"INSTANT_FUNDING_SOURCE" }, "soft_descriptor":"ANYAIRLINE BAGGAGE" } ], "note_to_payer":"Be happy." }' -H 'Authorization: Bearer 482slsk.QISKEkdls8345_Zsrq9cK9hNsqrEU9xem4Qsod844D382fjff'
+  -->
+  <flow name="api-main">
+    <http:listener config-ref="apiHttpListenerConfig" path="/${api.majorVersion}/*">
+      <http:response statusCode="#[vars.httpStatus default 200]"/>
+      <http:error-response statusCode="#[vars.httpStatus default 500]">
+        <http:body><![CDATA[#[payload]]]></http:body>
+      </http:error-response>
+    </http:listener>
+    <apikit:router config-ref="apiConfig"/>
+    <error-handler ref="api-error-handler"/>
+  </flow>
+  <flow name="api-console">
+    <http:listener config-ref="apiHttpListenerConfig" path="/console/${api.majorVersion}/*">
+      <http:response statusCode="#[vars.httpStatus default 200]">
+        <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+      </http:response>
+      <http:error-response statusCode="#[vars.httpStatus default 500]">
+        <http:body>#[payload]</http:body>
+        <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+      </http:error-response>
+    </http:listener>
+    <apikit:console config-ref="apiConfig"/>
+    <error-handler ref="api-console-error-handler"/>
+  </flow>
+  <flow name="post:\oauth2\token:application\x-www-form-urlencoded:apiConfig">
+    <logger level="INFO" message="Received HTTP POST request for OAuth2 token"/>
+    <flow-ref doc:name="verify-basic-authentication" name="verify-basic-authentication"/>
+    <validation:is-true expression="#[output application/java --- payload.grant_type == 'client_credentials']" doc:name="client_credentials grant_type else raise INVALID_GRANTTYPE">
+      <error-mapping targetType="APP:INVALID_GRANTTYPE"/>
+    </validation:is-true>
+    <set-variable variableName="token" value="#[import Tokens --- Tokens::randomToken()]" doc:name="Random Token"/>
+    <ee:transform doc:name="Create token object">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+              output application/json
+              ---
+              {
+                scope: "https://uri.paypal.com/services/subscriptions https://api.paypal.com/v1/payments/.* https://api.paypal.com/v1/vault/credit-card https://uri.paypal.com/services/applications/webhooks openid https://uri.paypal.com/payments/payouts https://api.paypal.com/v1/vault/credit-card/.*",
+                nonce: now() as String {format: "yyyy-MM-dd"} ++ "ZCl54Q_OlDqP6-4D03sDT8wRiHjKrYlb5EH7Di0gRrds",
+                access_token: vars.token,
+                token_type: "Bearer",
+                app_id: p('app.id'),
+                expires_in: (1 + randomInt(10))*60 // 1 - 10 minutes in seconds
+              }
+              ]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <logger level="INFO" message="Returning HTTP response for POST request for OAuth2 token" doc:name="END"/>
+    <error-handler>
+      <on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" type="APP:INVALID_GRANTTYPE">
+        <set-variable value="400" doc:name="httpStatus" variableName="httpStatus"/>
+        <set-payload value="Bad submission form. Only client_credentials is allowed for grant_type." doc:name="Set Payload"/>
+      </on-error-propagate>
+      <on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" type="APP:BASIC_AUTHENTICATION">
+        <set-variable value="401" doc:name="httpStatus" variableName="httpStatus"/>
+        <set-payload value="Bad credentials supplied." doc:name="Set Payload"/>
+      </on-error-propagate>
+    </error-handler>
+  </flow>
+  <flow name="post:\payments\payment:application\json:apiConfig">
+    <logger level="INFO" message="Received HTTP POST request to create payment" doc:name="START"/>
+    <flow-ref doc:name="verify-token" name="verify-token"/>
+    <ee:transform doc:name="Create payment-created object">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+          output application/json
+          
+          var curTime = (now() >> "UTC") as String {format: "yyyy-MM-dd'T'hh:mm:ss"} ++ "Z"
+          ---
+          {
+            id: p('app.paymentID'),
+            create_time: curTime,
+            update_time: curTime,
+            state: "created",
+            intent: "sale",
+            payer: {
+              payment_method: "paypal"
+            },
+            transactions: [
+              {
+                amount: {
+                  total: "80.00",
+                  currency: "USD"
+                },
+                description: "Check-In Baggage.",
+                custom: "ANYAIRLINE_90048630024435",
+                invoice_number: "48787589673",
+                payment_options: {
+                  allowed_payment_method: "INSTANT_FUNDING_SOURCE"
+                },
+                soft_descriptor: "ANYAIRLINE BAGGAGE"
+              }
+            ],
+            links: [
+              {
+                href: "https://api.paypal.com/v1/payments/payment/$(p('app.id'))",
+                rel: "self",
+                method: "GET"
+              },
+              {
+                href: "https://api.paypal.com/v1/payments//cgi-bin/webscr?cmd=_express-checkout&token=EC-60385559L1062554J",
+                rel: "approval_url",
+                method: "REDIRECT"
+              },
+              {
+                href: "https://api.paypal.com/v1/payments/payment/$(p('app.id'))/execute",
+                rel: "execute",
+                method: "POST"
+              }
+            ]
+          }]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <logger level="INFO" message="Returning HTTP response for POST request to create payment" doc:name="END"/>
+    <error-handler ref="payments-error-handler"/>
+  </flow>
+  <flow name="post:\payments\payment\(PaymentID)\execute:application\json:apiConfig">
+    <logger level="INFO" message="Received HTTP POST request to execute payment" doc:name="START"/>
+    <flow-ref doc:name="verify-token" name="verify-token"/>
+    <set-variable value="#[attributes.uriParams.PaymentID]" doc:name="PaymentID" variableName="PaymentID"/>
+    <validation:is-true expression="#[vars.PaymentID == p('app.paymentID')]" message="Payment ID invalid." doc:name="PaymentID matches else raise INVALID_PAYMENTID">
+      <error-mapping targetType="APP:INVALID_PAYMENTID"/>
+    </validation:is-true>
+    <validation:is-true expression="#[payload.payer_id == p('app.payerID')]" message="Payer ID invalid." doc:name="payer_id matches else raise INVALID_PAYERID">
+      <error-mapping targetType="APP:INVALID_PAYERID"/>
+    </validation:is-true>
+    <ee:transform doc:name="Create payment-executed object">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+          output application/json
+          
+          var curTime = (now() >> "UTC") as String {format: "yyyy-MM-dd'T'hh:mm:ss"} ++ "Z"
+          ---
+          {
+            id: p('app.paymentID'),
+            create_time: curTime,
+            update_time: curTime,
+            state: "approved",
+            intent: "sale",
+            payer: {
+              payment_method: "paypal",
+              payer_info: {
+                email: "maxmule@paypal.com",
+                first_name: "Max",
+                last_name: "Mule",
+                payer_id: payload.payer_id
+              }
+            },
+            transactions: [
+              {
+                amount: {
+                  total: "80.00",
+                  currency: "USD"
+                },
+                description: "Check-In Baggage.",
+                custom: "ANYAIRLINE_90048630024435",
+                invoice_number: "48787589673",
+                soft_descriptor: "ANYAIRLINE BAGGAGE"
+              }
+            ],
+            links: [
+              {
+                href: "https://api.paypal.com/v1/payments/payment/PAY-1B56960729604235TKQQIYVY",
+                rel: "self",
+                method: "GET"
+              }
+            ]
+          }]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <logger level="INFO" message="Returning HTTP response for POST request to execute payment" doc:name="END"/>
+    <error-handler ref="payments-error-handler"/>
+  </flow>
+  <sub-flow name="verify-basic-authentication">
+    <try>
+      <set-variable variableName="clientID" value="#[var combinedCredential = dw::core::Binaries::fromBase64((attributes.headers.authorization! splitBy / /)[1])     ---     (combinedCredential splitBy /:/)[0]]" doc:name="clientID"/>
+      <set-variable variableName="clientSecret" value="#[var combinedCredential = dw::core::Binaries::fromBase64((attributes.headers.authorization! splitBy / /)[1])     ---     (combinedCredential splitBy /:/)[1]]" doc:name="clientSecret"/>
+      <error-handler>
+        <on-error-continue>
+          <raise-error type="APP:BASIC_AUTHENTICATION" doc:name="APP:BASIC_AUTHENTICATION"/>
+        </on-error-continue>
+      </error-handler>
+    </try>
+    <validation:is-true expression="#[vars.clientID == p('app.id') and vars.clientSecret == p('app.secret')]" doc:name="clientID/clientSecret match else raise BASIC_AUTHENTICATION">
+      <error-mapping targetType="APP:BASIC_AUTHENTICATION"/>
+    </validation:is-true>
+  </sub-flow>
+  <sub-flow name="verify-token">
+    <try>
+      <set-variable variableName="token" value="#[(attributes.headers.authorization as String splitBy / /)[1]]" doc:name="token"/>
+      <error-handler>
+        <on-error-continue>
+          <raise-error type="APP:INVALID_TOKEN" doc:name="APP:INVALID_TOKEN"/>
+        </on-error-continue>
+      </error-handler>
+    </try>
+    <validation:is-true expression="#[Tokens::isValidToken(vars.token)]" doc:name="Valid token else raise INVALID_TOKEN">
+      <error-mapping targetType="APP:INVALID_TOKEN"/>
+    </validation:is-true>
+  </sub-flow>
+</mule>

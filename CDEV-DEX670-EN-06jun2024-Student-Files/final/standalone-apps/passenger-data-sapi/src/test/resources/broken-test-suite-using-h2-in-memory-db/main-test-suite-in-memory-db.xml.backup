@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2020 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+
+<mule xmlns:dbserver="http://www.mulesoft.org/schema/mule/dbserver" xmlns:core="http://www.mulesoft.org/schema/mule/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xsi:schemaLocation="
+	http://www.mulesoft.org/schema/mule/dbserver http://www.mulesoft.org/schema/mule/dbserver/current/mule-dbserver.xsd 
+	http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd 
+	http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd 
+	http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+	http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+
+	<munit:config name="mainInMemoryDBSuite" />
+
+	<munit:before-suite name="main-test-in-memory-db-suite-before-suite" description="Setting up test suite">
+		<logger message="Before Test Suite" level="INFO" doc:name="Logger" />
+	</munit:before-suite>
+
+	<dbserver:config name="local">
+		<dbserver:connection database="${db.database}" />
+	</dbserver:config>
+
+	<munit:after-test name="main-test-suite-in-memory-dbAfter_Test" description="After tests actions"
+		>
+		<dbserver:execute sql="DELETE FROM passenger_flights_checkin;" config-ref="local" />
+	</munit:after-test>
+
+	<munit:test name="main-test-suite-in-memory-db-get-passenger-by-passport-no"
+		description="get-passenger-by-passport-no Happy Path">
+		<munit:behavior>
+			<munit:set-event doc:name="Set passportNo">
+				<munit:attributes value="#[{queryParams: {passportNo: 'P123456'}}]" mediaType="application/java" encoding="UTF-8" />
+			</munit:set-event>
+		</munit:behavior>
+
+		<munit:execution>
+			<flow-ref name="get-passenger-by-passport-no-api" doc:name="get-passenger-by-passport-no" />
+		</munit:execution>
+
+		<munit:validation>
+			<munit-tools:assert-that expression="#[payload]"
+				is="#[MunitTools::equalTo({loyaltyNo: 'LNO123', lastName: 'LN'})]" doc:name="Payload has result" />
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="main-test-suite-in-memory-db-get-passenger-by-passport-no_noMatch"
+		description="get-passenger-by-passport-no No Match">
+		<munit:behavior>
+			<munit:set-event doc:name="Set passportNo">
+				<munit:attributes value="#[{queryParams: {passportNo: 'P1234567NOMATCH'}}]" mediaType="application/java"
+					encoding="UTF-8" />
+			</munit:set-event>
+		</munit:behavior>
+
+		<munit:execution>
+			<flow-ref name="get-passenger-by-passport-no-api" doc:name="get-passenger-by-passport-no" />
+		</munit:execution>
+
+		<munit:validation>
+			<munit-tools:assert-that expression="#[payload.message]" is="#[MunitTools::notNullValue()]"
+				doc:name="Payload has message" />
+			<munit-tools:assert-that expression="#[vars.httpStatus]" is="#[MunitTools::equalTo('404')]"
+				doc:name="Status is 404" />
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="main-test-suite-in-memory-db-get-passenger-by-passport-no_manyMatches"
+		description="get-passenger-by-passport-no Many Matches">
+		<munit:behavior>
+			<munit:set-event doc:name="Set passportNo">
+				<munit:attributes value="#[{queryParams: {passportNo: 'P123456MANY'}}]" mediaType="application/java" encoding="UTF-8" />
+			</munit:set-event>
+		</munit:behavior>
+
+		<munit:execution>
+			<flow-ref name="get-passenger-by-passport-no-api" doc:name="get-passenger-by-passport-no" />
+		</munit:execution>
+
+		<munit:validation>
+			<munit-tools:assert-that expression="#[payload]"
+				is="#[MunitTools::equalTo({loyaltyNo: 'LNO123', lastName: 'LN'})]" doc:name="Payload has 1st matching result" />
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="main-test-suite-in-memory-db-record-passenger-flight-by-lno"
+		description="record-passenger-flight-by-lno Happy Path">
+		<munit:behavior>
+			<flow-ref name="record-passenger-flight-by-lno_setevent" doc:name="record-passenger-flight-by-lno_setevent" />
+		</munit:behavior>
+
+		<munit:execution>
+			<flow-ref name="record-passenger-flight-by-lno-api" doc:name="record-passenger-flight-by-lno" />
+		</munit:execution>
+
+		<munit:validation>
+			<munit-tools:assert-that expression="#[payload.message]" is="#[MunitTools::notNullValue()]"
+				doc:name="Payload has message" />
+
+			<dbserver:validate-that query="SELECT * FROM passenger_flights_checkin;" config-ref="local"
+				returns='"LOYALTY_NO","FLIGHT_DATE","FLIGHT_NO","FLIGHT_ORIGIN","FLIGHT_DESTINATION","CHECKIN_UTC"\n"LNO123456","2018-02-22","KS404","MUA","JFK","2018-02-21 21:11:49"' />
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="main-test-suite-in-memory-db-record-passenger-flight-by-lno_date-checkin1-subseconds"
+		description="record-passenger-flight-by-lno Date CheckIn 1 Sub-Seconds Truncated">
+		<munit:behavior>
+			<munit:set-event doc:name="Set LNO and payload with milliseconds">
+				<munit:payload
+					value='{"date_checkin": "1985-04-12T23:20:50.52Z", "destination": "JFK", "flight_date": "2018-02-22", "flight_no": "KS404", "origin": "MUA"}'
+					mediaType="application/json" encoding="UTF-8" />
+				<munit:attributes value="#[{uriParams: {LNO: 'LNO123456'}}]" mediaType="application/java" encoding="UTF-8" />
+			</munit:set-event>
+		</munit:behavior>
+
+		<munit:execution>
+			<flow-ref name="record-passenger-flight-by-lno-api" doc:name="record-passenger-flight-by-lno" />
+		</munit:execution>
+
+		<munit:validation>
+			<munit-tools:assert-that expression="#[payload.message]" is="#[MunitTools::notNullValue()]"
+				doc:name="Payload has message" />
+
+			<dbserver:validate-that query="SELECT * FROM passenger_flights_checkin;" config-ref="local"
+				returns='"LOYALTY_NO","FLIGHT_DATE","FLIGHT_NO","FLIGHT_ORIGIN","FLIGHT_DESTINATION","CHECKIN_UTC"\n"LNO123456","2018-02-22","KS404","MUA","JFK","1985-04-12 23:20:50"' />
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="main-test-suite-in-memory-db-record-passenger-flight-by-lno_date-checkin2-UTC"
+		description="record-passenger-flight-by-lno Date CheckIn 2 UTC Conversion">
+		<munit:behavior>
+			<munit:set-event doc:name="Set LNO and payload with timezone offset">
+				<munit:payload
+					value='{"date_checkin": "1996-12-19T16:39:57-08:00", "destination": "JFK", "flight_date": "2018-02-22", "flight_no": "KS404", "origin": "MUA"}'
+					mediaType="application/json" encoding="UTF-8" />
+				<munit:attributes value="#[{uriParams: {LNO: 'LNO123456'}}]" mediaType="application/java" encoding="UTF-8" />
+			</munit:set-event>
+		</munit:behavior>
+
+		<munit:execution>
+			<flow-ref name="record-passenger-flight-by-lno-api" doc:name="record-passenger-flight-by-lno" />
+		</munit:execution>
+
+		<munit:validation>
+			<munit-tools:assert-that expression="#[payload.message]" is="#[MunitTools::notNullValue()]"
+				doc:name="Payload has message" />
+
+			<dbserver:validate-that query="SELECT * FROM passenger_flights_checkin;" config-ref="local"
+				returns='"LOYALTY_NO","FLIGHT_DATE","FLIGHT_NO","FLIGHT_ORIGIN","FLIGHT_DESTINATION","CHECKIN_UTC"\n"LNO123456","2018-02-22","KS404","MUA","JFK","1996-12-20 00:39:57"' />
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="main-test-suite-in-memory-db-record-passenger-flight-by-lno_strings-normalized"
+		description="record-passenger-flight-by-lno Strings Normalized">
+		<munit:behavior>
+			<munit:set-event doc:name="Set LNO and payload using messed-up strings">
+				<munit:payload
+					value='{"date_checkin": "2018-02-21T21:11:49Z", "destination": "  jFk ", "flight_date": "2018-02-22", "flight_no": " ks404", "origin": "	MuA	"}'
+					mediaType="application/json" encoding="UTF-8" />
+				<munit:attributes value="#[{uriParams: {LNO: 'LNO123456'}}]" mediaType="application/java" encoding="UTF-8" />
+			</munit:set-event>
+		</munit:behavior>
+
+		<munit:execution>
+			<flow-ref name="record-passenger-flight-by-lno-api" doc:name="record-passenger-flight-by-lno" />
+		</munit:execution>
+
+		<munit:validation>
+			<munit-tools:assert-that expression="#[payload.message]" is="#[MunitTools::notNullValue()]"
+				doc:name="Payload has message" />
+
+			<dbserver:validate-that query="SELECT * FROM passenger_flights_checkin;" config-ref="local"
+				returns='"LOYALTY_NO","FLIGHT_DATE","FLIGHT_NO","FLIGHT_ORIGIN","FLIGHT_DESTINATION","CHECKIN_UTC"\n"LNO123456","2018-02-22","KS404","MUA","JFK","2018-02-21 21:11:49"' />
+		</munit:validation>
+	</munit:test>
+
+</mule>

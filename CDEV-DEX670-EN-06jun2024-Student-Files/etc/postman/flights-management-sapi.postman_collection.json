@@ -1,0 +1,374 @@
+{
+	"info": {
+		"_postman_id": "c071c91e-e2ac-4c37-8a9f-77b75881a877",
+		"name": "flights-management-sapi",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "88351"
+	},
+	"item": [
+		{
+			"name": "checkin(lastName:Mule) - cloudhub",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{fmssapi_client_secret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{fmssapi_client_id}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"lastName\": \"Mule\",\n  \"numBags\": 2\n}"
+				},
+				"url": {
+					"raw": "https://tngaa-flights-management-sapi-dev-9yj2rh.rajrd4-2.usa-e1.cloudhub.io/api/v1/tickets/PNR123/checkin",
+					"protocol": "https",
+					"host": [
+						"tngaa-flights-management-sapi-dev-9yj2rh",
+						"rajrd4-2",
+						"usa-e1",
+						"cloudhub",
+						"io"
+					],
+					"path": [
+						"api",
+						"v1",
+						"tickets",
+						"PNR123",
+						"checkin"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "cancelFlight - cloudhub",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{fmssapi_client_secret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{fmssapi_client_id}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "text/xml"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "<CancellationNotification>\n    <PNR>PNR123</PNR>\n    <PassengerLastName>Mule</PassengerLastName>\n</CancellationNotification>",
+					"options": {
+						"raw": {
+							"language": "xml"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://tngaa-flights-management-sapi-dev-9yj2rh.rajrd4-2.usa-e1.cloudhub.io/api/cancelFlight",
+					"protocol": "https",
+					"host": [
+						"tngaa-flights-management-sapi-dev-9yj2rh",
+						"rajrd4-2",
+						"usa-e1",
+						"cloudhub",
+						"io"
+					],
+					"path": [
+						"api",
+						"cancelFlight"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "cancelFlight - local",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{fmssapi_client_secret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{fmssapi_client_id}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "text/xml"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "<CancellationNotification>\n    <PNR>PNR123</PNR>\n    <PassengerLastName>Mule</PassengerLastName>\n</CancellationNotification>",
+					"options": {
+						"raw": {
+							"language": "xml"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://localhost:8081/api/cancelFlight",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"cancelFlight"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "cancelFlight - local w/ correlationId",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{fmssapi_client_secret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{fmssapi_client_id}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "text/xml"
+					},
+					{
+						"key": "X-CORRELATION-ID",
+						"value": "PNR123",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "<CancellationNotification>\n    <PNR>PNR123</PNR>\n    <PassengerLastName>Mule</PassengerLastName>\n</CancellationNotification>",
+					"options": {
+						"raw": {
+							"language": "xml"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://localhost:8081/api/cancelFlight",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"cancelFlight"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "checkin(lastName:Mule) - local",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{cipapi_client_secret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{cipapi_client_id}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"lastName\": \"Mule\",\n  \"numBags\": 2\n}"
+				},
+				"url": {
+					"raw": "https://localhost:8081/api/v1/tickets/PNR123/checkin",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"v1",
+						"tickets",
+						"PNR123",
+						"checkin"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ticket(lastName:Mule) - local",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{cipapi_client_secret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{cipapi_client_id}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"lastName\": \"Mule\",\n  \"numBags\": 2\n}"
+				},
+				"url": {
+					"raw": "https://localhost:8081/api/v1/tickets/PNR123",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"v1",
+						"tickets",
+						"PNR123"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "alive - local",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "https://localhost:8081/alive",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"alive"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ready - local",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "https://localhost:8081/ready",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"ready"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

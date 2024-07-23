@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation=" http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd   http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd   http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd   http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd   http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd  http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd     ">
+  <flow name="check-in-by-pnr">
+    <set-variable value="#[payload]" doc:name="checkIn" variableName="checkIn"/>
+    <logger level="INFO" message="Sending CheckIn object to Check In PAPI" doc:name="BEFORE REQUEST"/>
+    <ee:transform doc:name="Build params var map for retry params">
+      <ee:variables>
+        <ee:set-variable variableName="params"><![CDATA[{
+            invokeWebApiFlow:     "check-in-papi-update-checkins-by-pnr",
+            maxRetries:           2,
+            millisBetweenRetries: 500,
+            namespace:            "HTTP"
+          }]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <flow-ref name="invoke-web-api-until-successful" doc:name="invoke-web-api-until-successful"/>
+    <validation:is-true expression="#[vars.successful]" doc:name="Successful else raise CHECKIN-PAPI-FAILURE">
+      <error-mapping targetType="APP:CHECKIN-PAPI-FAILURE"/>
+    </validation:is-true>
+  </flow>
+  <flow name="approve-payment-by-pnr">
+    <set-variable value="#[payload]" doc:name="paymentApproval" variableName="paymentApproval"/>
+    <logger level="INFO" message="Sending paymentApproval object to Check In PAPI" doc:name="BEFORE REQUEST"/>
+    <ee:transform doc:name="Build params var map for retry params">
+      <ee:variables>
+        <ee:set-variable variableName="params"><![CDATA[{
+            invokeWebApiFlow:     "check-in-papi-update-payment-approvals-by-pnr",
+            maxRetries:           2,
+            millisBetweenRetries: 500,
+            namespace:            "HTTP"
+          }]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <flow-ref name="invoke-web-api-until-successful" doc:name="invoke-web-api-until-successful"/>
+    <validation:is-true expression="#[vars.successful]" doc:name="Successful else raise CHECKIN-PAPI-FAILURE">
+      <error-mapping targetType="APP:CHECKIN-PAPI-FAILURE"/>
+    </validation:is-true>
+  </flow>
+  <flow name="check-in-papi-update-checkins-by-pnr">
+    <http:request config-ref="checkinPapiConfig" method="PUT" path="/tickets/{PNR}/checkin">
+      <http:body><![CDATA[#[vars.checkIn]]]></http:body>
+      <http:uri-params><![CDATA[#[output application/java
+---
+{
+  "PNR" : vars.PNR
+}]]]></http:uri-params>
+    </http:request>
+  </flow>
+  <flow name="check-in-papi-update-payment-approvals-by-pnr">
+    <http:request config-ref="checkinPapiConfig" method="PUT" path="/tickets/{PNR}/paymentApproval">
+      <http:body><![CDATA[#[vars.paymentApproval]]]></http:body>
+      <http:uri-params><![CDATA[#[output application/java
+---
+{
+  "PNR" : vars.PNR
+}]]]></http:uri-params>
+    </http:request>
+  </flow>
+</mule>

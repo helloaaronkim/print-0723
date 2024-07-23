@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="  http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd  http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd  http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd   http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd  http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd    http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+  <flow name="get-passenger-by-passport-no">
+    <ee:transform doc:name="Set SQL and input params">
+      <ee:variables>
+        <ee:set-variable variableName="sql"><![CDATA[
+            "SELECT loyalty_no, lastname 
+             FROM $(p('db.accttable')) 
+             WHERE passport_id = :passport"
+          ]]></ee:set-variable>
+        <ee:set-variable variableName="inputParameters"><![CDATA[
+          output application/java
+          ---
+          {
+            passport: vars.passportNo
+          }]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <db:select config-ref="postgresDBConfig" queryTimeout="${db.timeOutMillis}" queryTimeoutUnit="MILLISECONDS" doc:name="Passenger Account">
+      <db:sql>#[vars.sql]</db:sql>
+      <db:input-parameters>#[vars.inputParameters]</db:input-parameters>
+    </db:select>
+    <logger level="INFO" message="After SELECT from postgre-db-config" doc:name="AFTER_REQUEST"/>
+    <validation:is-not-empty-collection doc:name="Is not empty collection"/>
+    <ee:transform doc:name="Build passenger response">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+          output application/json
+          ---
+          {
+            loyaltyNo: payload[0].loyalty_no,
+            lastName: payload[0].lastname
+          }
+          ]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <error-handler>
+      <on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" type="VALIDATION:EMPTY_COLLECTION">
+        <set-payload value="#[output application/json --- {message: 'No passenger found with the supplied passport number.'}]" doc:name="Message"/>
+        <set-variable variableName="httpStatus" value="404" doc:name="httpStatus 404"/>
+      </on-error-continue>
+    </error-handler>
+  </flow>
+  <flow name="record-passenger-flight-by-lno">
+    <ee:transform doc:name="Set SQL and input params">
+      <ee:variables>
+        <ee:set-variable variableName="sql"><![CDATA[
+            "INSERT INTO $(p('db.checkintable')) 
+            (loyalty_no,flight_date,flight_no,flight_origin,flight_destination,checkin_utc) 
+            VALUES 
+            (:lno,:flight_date,:flight_no,:flight_origin,:flight_destination,:checkin)"
+          ]]></ee:set-variable>
+        <ee:set-variable variableName="inputParameters"><![CDATA[
+          output application/java
+          ---
+          {
+            lno: vars.LNO,
+            flight_date: (payload.flight_date as Date) as String {format: 'yyyy-MM-d'}, // insert Date as String
+            flight_no: upper(trim(payload.flight_no)),
+            flight_origin: upper(trim(payload.origin)),
+            flight_destination: upper(trim(payload.destination)),
+            checkin: (payload.date_checkin as DateTime >> "UTC") as String {format: 'yyyy-MM-d HH:mm:ss'}    // convert to UTC and insert as String for postgre-db-config
+          }]]></ee:set-variable>
+      </ee:variables>
+    </ee:transform>
+    <db:insert queryTimeout="${db.timeOutMillis}" queryTimeoutUnit="MILLISECONDS" config-ref="postgresDBConfig" doc:name="Insert passenger flight check-in record">
+      <db:sql>#[vars.sql]</db:sql>
+      <db:input-parameters><![CDATA[#[vars.inputParameters]]]></db:input-parameters>
+    </db:insert>
+    <validation:is-true doc:name="Confirm data has been inserted" expression="#[payload.affectedRows &gt; 0]" message="Database should have inserted data"/>
+    <ee:transform doc:name="Build check-in response">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+          output application/json
+          ---
+          {
+            message: "Passenger check-in complete."
+          }]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <error-handler>
+      <on-error-continue type="DB:QUERY_EXECUTION, EXPRESSION" enableNotifications="false" logException="false" doc:name="Client error">
+        <set-payload value="#[output application/json --- { message: 'Error checking in passenger. Please check the request payload that it conforms to the expected JSON schema' }]" doc:name="Message"/>
+        <set-variable variableName="httpStatus" value="400" doc:name="httpStatus 400"/>
+      </on-error-continue>
+      <on-error-continue enableNotifications="true" logException="true" doc:name="Server error">
+        <set-payload value="#[output application/json --- { message: 'Unexpected internal error' }]" doc:name="Message"/>
+        <set-variable variableName="httpStatus" value="500" doc:name="httpStatus 500"/>
+      </on-error-continue>
+    </error-handler>
+  </flow>
+</mule>

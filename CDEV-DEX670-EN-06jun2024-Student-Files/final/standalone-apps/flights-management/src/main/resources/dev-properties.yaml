@@ -1,0 +1,27 @@
+###
+# #%L
+# MuleSoft Training - Anypoint Platform Development: Level 2
+# %%
+# Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+# %%
+# The software in this package is published under the terms of the
+# Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+# a copy of which has been included with this distribution in the LICENSE.txt file.
+# #L%
+###
+# Autodiscovery API ID in API Manager in this environment
+api:
+  id: "15613584"
+  ws.address: "https://tngaa-flights-management-devx-9yj2rh.d5n5q8.usa-e1.cloudhub.io"
+  
+tls.keystore:
+  type:  "pkcs12"
+  path:  "certs/${project.name}-dev.p12" # replaced through Maven resource filtering
+  alias: "server"
+anypoint:
+  mq:
+    url:        "https://mq-us-east-1.anypoint.mulesoft.com/api/v1/organizations/a63e6d25-8aaf-4512-b36d-d91b90a55c4a/environments/129441e8-ae69-4cf9-a70b-cdabca4823ff"
+    callbacks:
+      q:        "fms-callbacks-q-dev"
+      retry.q:  "fms-callbacks-retry-q-dev"
+      dlq:      "fms-callbacks-dlq-dev"

@@ -1,0 +1,29 @@
+{
+  "id" : "10891-16262830",
+  "template" : {
+    "groupId" : "1236a677-c18b-4613-b692-4ad2f7507655",
+    "assetId" : "custom-message-logging",
+    "version" : "0.0.5-SNAPSHOT"
+  },
+  "api" : [ {
+    "id" : 16262830
+  } ],
+  "online" : true,
+  "order" : 11,
+  "configuration" : {
+    "isWsdlEndpoint" : false,
+    "policyId" : "10891-16262830",
+    "configuration" : [ {
+      "message" : "#['hello']",
+      "category" : "mycategory",
+      "level" : "INFO",
+      "firstSection" : true,
+      "secondSection" : true
+    }, {
+      "message" : "#['goodbye']",
+      "level" : "INFO",
+      "beforeAPI" : true,
+      "afterAPI" : true
+    } ]
+  }
+}

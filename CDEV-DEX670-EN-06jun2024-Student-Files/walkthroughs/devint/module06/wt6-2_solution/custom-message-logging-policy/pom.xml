@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <!-- tag::all[] -->
+  <!-- tag::mvn-parent[] -->
+  <parent>
+    <!-- students: replace with your AP org ID -->
+    <groupId>a63e6d25-8aaf-4512-b36d-d91b90a55c4a</groupId>
+    <artifactId>solutions-parent-pom</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    
+    <relativePath>../parent-pom/pom.xml</relativePath>
+    
+  </parent>
+  <!-- end::mvn-parent[] -->
+  <groupId>your-AP-organization-id</groupId>
+  
+  <artifactId>custom-message-logging-policy</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  
+  <name>Custom Message Logging</name>
+  <description>Policy for logging messages</description>
+  <packaging>mule-policy</packaging>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.mule.tools.maven</groupId>
+        <artifactId>mule-maven-plugin</artifactId>
+        <extensions>true</extensions>
+      </plugin>
+    </plugins>
+  </build>
+  <!-- end::all[] -->
+</project>

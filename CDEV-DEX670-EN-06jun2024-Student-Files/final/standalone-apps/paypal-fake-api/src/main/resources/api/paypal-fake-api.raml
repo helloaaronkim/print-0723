@@ -1,0 +1,123 @@
+#%RAML 1.0
+# Copyright (C) MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+#
+# The software in this package is published under the terms of the
+# Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+# a copy of which has been included with this distribution in the LICENSE.txt file.
+
+title: PayPal Fake API
+version: 1.0
+baseUri: https://training-paypal-fake-api-mjf1rw.5sc6y6-2.usa-e2.cloudhub.io/v1
+
+securitySchemes: 
+  basic: !include securitySchemas/basic.raml
+  oauth2: !include securitySchemas/oauth2.raml
+
+traits: 
+  grant-credentials: !include traits/trait-auth-grant-credentials.raml
+
+types:
+  Transaction: !include dataTypes/transaction.raml
+  Token: !include dataTypes/token.raml
+  PayerID: !include dataTypes/payerID.raml
+  Link: !include dataTypes/link.raml
+  PaymentInitiate:
+    type: object
+    properties:
+      intent: string
+      payer:
+        type: object
+        properties:
+          payment_method: string
+      transactions: Transaction[]
+      note_to_payer: string
+  PaymentCreated: 
+    type: object
+    properties: 
+      id: string
+      create_time: 
+        type: datetime
+        format: rfc3339
+      update_time:
+        type: datetime
+        format: rfc3339
+      state: string
+      intent: string
+      payer:
+        type: object
+        properties: 
+          payment_method: string
+      transactions: Transaction[]
+      links: Link[]
+  PaymentExecuted:
+    type: object
+    properties: 
+      id: string
+      create_time: 
+        type: datetime
+        format: rfc3339
+      update_time:
+        type: datetime
+        format: rfc3339
+      state: string
+      intent: string
+      payer:
+        type: object
+        properties: 
+          payment_method: string
+          payer_info:
+            type: object
+            properties: 
+              email: string
+              first_name: string
+              last_name: string
+              payer_id: string
+      transactions: Transaction[]
+      links: Link[]
+
+/oauth2/token:
+  securedBy: basic
+  is: [grant-credentials]
+  post:
+    description: Retrieve temporary access token.
+    responses: 
+      200:
+        body: 
+          application/json:
+            type: Token
+            example: !include examples/token-example.raml
+      400:
+        description: |
+          Bad submission form. Check all required headers and data are posted correctly.
+      401:
+        description: |
+          Bad credentials supplied
+/payments:
+  /payment:
+    securedBy: oauth2
+    post:
+      description: Create a new payment.
+      body:
+        application/json:
+          type: PaymentInitiate
+          example: !include examples/payment-initiate-example.raml
+      responses: 
+        200:
+          body: 
+            application/json:
+              type: PaymentCreated
+              example: !include examples/payment-created-example.raml
+    /{PaymentID}/execute:
+      securedBy: oauth2
+      post:
+        description: Execute the payment.
+        body: 
+          application/json:
+            type: PayerID
+            example: !include examples/payerid-example.raml
+        responses: 
+          200:
+            body: 
+              application/json:
+                type: PaymentExecuted
+                example: !include examples/payment-executed-example.raml

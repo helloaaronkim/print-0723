@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<module xmlns="http://www.mulesoft.org/schema/mule/module" xmlns:mule="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:tns="http://www.mulesoft.org/schema/mule/resilience" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="Resilience" prefix="resilience" doc:description="This module relies in runtime provided components" xsi:schemaLocation="            http://www.mulesoft.org/schema/mule/module http://www.mulesoft.org/schema/mule/module/current/mule-module.xsd            http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd                 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd      http://www.mulesoft.org/schema/mule/resilience http://www.mulesoft.org/schema/mule/resilience/current/mule-resilience.xsd">
+  <http:request-config name="httpRequestConfig"/>
+  <operation name="is-endpoint-alive" doc:description="Liveness probe to check if an endpoint is alive by sending an HTTP GET to the given URL, requiring a HTTP 2xx response, and retrying upon transient errors.">
+    <parameters>
+      <parameter name="url" displayName="URL" type="string" use="REQUIRED"/>
+      <parameter name="maxRetries" displayName="Max Retries" type="number" use="OPTIONAL" defaultValue="#[3]"/>
+      <parameter name="millisBetweenRetries" displayName="Milliseconds Between Retries" type="number" use="OPTIONAL" defaultValue="#[2000]"/>
+      <parameter name="responseTimeoutMillis" displayName="Response Timeout in Milliseconds" type="number" use="OPTIONAL" defaultValue="#[2000]"/>
+      <parameter name="successStatusCodes" displayName="Success Status Codes" type="string" use="OPTIONAL" defaultValue="200..299" example="200..299" tab="Response Validation" summary="Status codes that will be considered as successful. Other status codes in the response will cause the component to raise an error."/>
+    </parameters>
+    <body>
+      <mule:try>
+        <tns:retry-http url="#[vars.url]" maxRetries="#[vars.maxRetries]" millisBetweenRetries="#[vars.millisBetweenRetries]" responseTimeoutMillis="#[vars.responseTimeoutMillis]" successStatusCodes="#[vars.successStatusCodes]"/>
+        <mule:set-payload value="#[true]"/>
+        <mule:error-handler>
+          <mule:on-error-continue>
+            <mule:set-payload value="#[false]"/>
+          </mule:on-error-continue>
+        </mule:error-handler>
+      </mule:try>
+    </body>
+    <output type="boolean" doc:description="Endpoint alive?"/>
+  </operation>
+  <operation name="retry-http" doc:description="Execute a HTTP Request until it is successful, driven by pauses between retries and a max number of retries.">
+    <parameters>
+      <parameter name="url" displayName="URL" type="string" use="REQUIRED"/>
+      <parameter name="method" displayName="Method" type="method" use="OPTIONAL" defaultValue="GET"/>
+      <parameter name="body" displayName="Body" type="any" role="PRIMARY" use="OPTIONAL" defaultValue="#[payload]"/>
+      <parameter name="headers" displayName="Headers" type="map" role="CONTENT" use="OPTIONAL" example="#[output application/java --- { 'Key' : 'Value'}]"/>
+      <parameter name="uriParams" displayName="URI Parameters" type="map" role="CONTENT" use="OPTIONAL" example="#[output application/java --- { 'Key' : 'Value'}]"/>
+      <parameter name="queryParams" displayName="Query Parameters" type="map" role="CONTENT" use="OPTIONAL" example="#[output application/java --- { 'Key' : 'Value'}]"/>
+      <parameter name="maxRetries" displayName="Max Retries" type="number" use="OPTIONAL" defaultValue="#[3]"/>
+      <parameter name="millisBetweenRetries" displayName="Milliseconds Between Retries" type="number" use="OPTIONAL" defaultValue="#[2000]"/>
+      <parameter name="responseTimeoutMillis" displayName="Response Timeout in Milliseconds" type="number" use="OPTIONAL" defaultValue="#[2000]"/>
+      <parameter name="permanentErrorTypes" displayName="Permanent Error Type" type="error" use="OPTIONAL" defaultValue="#[['EXPRESSION','STREAM_MAXIMUM_SIZE_EXCEEDED']]" example="#[['BAD_REQUEST', 'UNAUTHORIZED']]" tab="Response Validation" summary="An array of error types considered permanent and not safe to retry."/>
+      <parameter name="transientErrorTypes" displayName="Transient Error Type" type="error" use="OPTIONAL" defaultValue="#[['TOO_MANY_REQUESTS','INTERNAL_SERVER_ERROR','SERVICE_UNAVAILABLE','TIMEOUT','CONNECTIVITY']]" example="#[['INTERNAL_SERVER_ERROR', 'TIMEOUT']]" tab="Response Validation" summary="An array of error types considered transient and safe to retry."/>
+      <parameter name="successStatusCodes" displayName="Success Status Codes" type="string" use="OPTIONAL" defaultValue="200..299" example="200..299" tab="Response Validation" summary="Status codes that will be considered as successful. Other status codes in the response will cause the component to raise an error."/>
+    </parameters>
+    <body>
+      <mule:try>
+        <mule:until-successful maxRetries="#[vars.maxRetries]" millisBetweenRetries="#[vars.millisBetweenRetries]">
+          <mule:try>
+            <http:request method="#[vars.method]" url="#[vars.url]" followRedirects="true" config-ref="httpRequestConfig" responseTimeout="#[vars.responseTimeoutMillis]">
+              <http:body><![CDATA[#[vars.body]]></http:body>
+              <http:headers><![CDATA[#[(vars.headers default {}) filterObject $ != null]]]></http:headers>
+              <http:uri-params><![CDATA[#[(vars.uriParams default {}) filterObject $ != null]]]></http:uri-params>
+              <http:query-params><![CDATA[#[(vars.queryParams default {}) filterObject $ != null]]]></http:query-params>
+              <http:response-validator>
+                <http:success-status-code-validator values="#[vars.successStatusCodes]"/>
+              </http:response-validator>
+            </http:request>
+            <mule:error-handler>
+              <mule:on-error-propagate when="#[(vars.transientErrorTypes contains error.errorType.identifier)]" enableNotifications="false" logException="false">
+                <mule:logger message="A presumably transient error occurred while executing http request (#[error.errorType.namespace ++ ':' ++ error.errorType.identifier ++ ' ' ++ error.description]) - triggering re-try" level="INFO"/>
+              </mule:on-error-propagate>
+              <mule:on-error-continue when="#[(vars.permanentErrorTypes contains error.errorType.identifier)]" enableNotifications="true" logException="false">
+                <mule:logger message="A permanent error occurred while executing http request(#[error.errorType.namespace ++ ':' ++ error.errorType.identifier ++ ' ' ++ error.description]) - giving up" level="ERROR"/>
+                <mule:set-variable variableName="permanentError" value="#[true]"/>
+              </mule:on-error-continue>
+              <mule:on-error-propagate enableNotifications="false" logException="true">
+                <mule:logger message="An unknown error, which is assumed to be transient, occurred while executing http request (#[error.errorType.namespace ++ ':' ++ error.errorType.identifier ++ ' ' ++ error.description]) - triggering re-try" level="INFO"/>
+              </mule:on-error-propagate>
+            </mule:error-handler>
+          </mule:try>
+        </mule:until-successful>
+        <mule:error-handler>
+          <mule:on-error-continue enableNotifications="true" logException="false">
+            <mule:logger message="Exhausted re-tries invoking a web API (#[error.errorType.namespace ++ ':' ++ error.errorType.identifier ++ ' ' ++ error.description]) - giving up" level="WARN"/>
+            <mule:raise-error type="RESILIENCE:RETRIES_EXHAUSTED" description="Exhausted re-tries executing http request"/>
+          </mule:on-error-continue>
+        </mule:error-handler>
+      </mule:try>
+      <mule:choice>
+        <mule:when expression="#[vars.permanentError == true]">
+          <mule:raise-error type="RESILIENCE:PERMANENT_ERROR" description="Permanent error invoking a web API"/>
+        </mule:when>
+      </mule:choice>
+    </body>
+    <output type="any" doc:description="Payload's output"/>
+    <errors>
+      <error type="RETRIES_EXHAUSTED"/>
+      <error type="PERMANENT_ERROR"/>
+    </errors>
+  </operation>
+</module>

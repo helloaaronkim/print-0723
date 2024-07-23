@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xsi:schemaLocation="  http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd   http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd   http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd  http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+  <munit:config name="main-test-suite.xml"/>
+  <munit:before-suite name="main-test-suiteBefore_Suite" description="Setting up test suite">
+    <logger message="Before Test Suite" level="INFO" doc:name="Logger"/>
+  </munit:before-suite>
+  <munit:after-suite name="main-test-suiteAfter_Suite" description="Tearing down test suite">
+    <logger message="After Test Suite" level="INFO" doc:name="Logger"/>
+  </munit:after-suite>
+  <munit:before-test name="main-test-suiteBefore_Test" description="Setting up individual test">
+    <logger message="Before Test" level="INFO" doc:name="Logger"/>
+  </munit:before-test>
+  <munit:after-test name="main-test-suiteAfter_Test" description="Tearing down individual test">
+    <logger message="After Test" level="INFO" doc:name="Logger"/>
+  </munit:after-test>
+  <munit:test name="main-test-suite-get-passenger-by-passport-no" description="get-passenger-by-passport-no Happy Path">
+    <munit:behavior>
+      <munit-tools:spy processor="db:select" doc:name="DB SELECT">
+        <munit-tools:before-call>
+          <munit-tools:assert-that expression="#[upper(vars.sql)]" is="#[MunitTools::equalToIgnoringWhiteSpace(upper('SELECT loyalty_no, lastname FROM passenger_accounts WHERE passport_id = :passport'))]" doc:name="SQL correct"/>
+          <munit-tools:assert-that expression="#[vars.inputParameters]" is="#[MunitTools::equalTo({passport: 'P123456'})]" doc:name="SQL input params correct"/>
+        </munit-tools:before-call>
+      </munit-tools:spy>
+      <munit-tools:mock-when processor="db:select" doc:name="DB SELECT called return exactly 1 match">
+        <munit-tools:then-return>
+          <munit-tools:payload value="#[[{loyalty_no: 'LNO123', lastname: 'LN'}]]"/>
+        </munit-tools:then-return>
+      </munit-tools:mock-when>
+    </munit:behavior>
+    <munit:execution>
+      <munit:set-event doc:name="Set passportNo">
+        <munit:attributes value="#[{queryParams: {passportNo: 'P123456'}}]" mediaType="application/java"/>
+      </munit:set-event>
+      <flow-ref name="get:\passengers:apiConfig" doc:name="get-passenger-by-passport-no"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:verify-call processor="db:select" times="1" doc:name="DB SELECT called once"/>
+      <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo({loyaltyNo: 'LNO123', lastName: 'LN'})]" doc:name="Payload has result"/>
+    </munit:validation>
+  </munit:test>
+  <munit:test name="main-test-suite-get-passenger-by-passport-no_noMatch" description="get-passenger-by-passport-no No Match">
+    <munit:behavior>
+      <!-- spy is already done in happy path -->
+      <munit-tools:mock-when processor="db:select" doc:name="DB SELECT called return no match">
+        <munit-tools:then-return>
+          <munit-tools:payload value="#[[]]"/>
+        </munit-tools:then-return>
+      </munit-tools:mock-when>
+    </munit:behavior>
+    <munit:execution>
+      <munit:set-event doc:name="Set passportNo">
+        <munit:attributes value="#[{queryParams: {passportNo: 'P123456'}}]" mediaType="application/java"/>
+      </munit:set-event>
+      <flow-ref name="get:\passengers:apiConfig" doc:name="get-passenger-by-passport-no"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:verify-call processor="db:select" times="1" doc:name="DB SELECT called once"/>
+      <munit-tools:assert-that expression="#[payload.message]" is="#[MunitTools::notNullValue()]" doc:name="Payload has message"/>
+      <munit-tools:assert-that expression="#[vars.httpStatus]" is="#[MunitTools::equalTo('404')]" doc:name="Status is 404"/>
+    </munit:validation>
+  </munit:test>
+  <munit:test name="main-test-suite-get-passenger-by-passport-no_manyMatches" description="get-passenger-by-passport-no Many Matches">
+    <munit:behavior>
+      <!-- spy is already done in happy path -->
+      <munit-tools:mock-when processor="db:select" doc:name="DB SELECT called return exactly 1 match">
+        <munit-tools:then-return>
+          <munit-tools:payload value="#[ [{loyalty_no: 'LNO123', lastname: 'LN'}, {loyalty_no: 'LN2', lastname: 'LN2'}, {loyalty_no: 'LN3', lastname: 'LN3'}] ]"/>
+        </munit-tools:then-return>
+      </munit-tools:mock-when>
+    </munit:behavior>
+    <munit:execution>
+      <munit:set-event doc:name="Set passportNo">
+        <munit:attributes value="#[{queryParams: {passportNo: 'P123456'}}]" mediaType="application/java"/>
+      </munit:set-event>
+      <flow-ref name="get:\passengers:apiConfig" doc:name="get-passenger-by-passport-no"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:verify-call processor="db:select" times="1" doc:name="DB SELECT called once"/>
+      <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo({loyaltyNo: 'LNO123', lastName: 'LN'})]" doc:name="Payload has 1st matching result"/>
+    </munit:validation>
+  </munit:test>
+  <munit:test name="main-test-suite-record-passenger-flight-by-lno" description="record-passenger-flight-by-lno Happy Path">
+    <munit:behavior>
+      <!-- basic assertions -->
+      <flow-ref name="record-passenger-flight-by-lno-dbinsert-spy" doc:name="record-passenger-flight-by-lno-dbinsert-spy"/>
+      <!-- additional assertions -->
+      <munit-tools:spy processor="db:insert" doc:name="DB INSERT">
+        <munit-tools:before-call>
+          <munit-tools:assert-that expression="#[vars.inputParameters.checkin]" is="#[MunitTools::equalTo('2018-02-21 21:11:49')]" doc:name="SQL input param checkin correct"/>
+        </munit-tools:before-call>
+      </munit-tools:spy>
+      <munit-tools:mock-when processor="db:insert" doc:name="DB INSERT called returns 1 affected row">
+        <munit-tools:then-return>
+          <!-- TODO: https://docs.mulesoft.com/connectors/database/database-documentation#StatementResult -->
+          <munit-tools:payload value="#[{}]"/>
+        </munit-tools:then-return>
+      </munit-tools:mock-when>
+    </munit:behavior>
+    <munit:execution>
+      <flow-ref name="record-passenger-flight-by-lno-setevent" doc:name="record-passenger-flight-by-lno-setevent"/>
+      <flow-ref name="post:\passengers\(LNO)\flights:application\json:apiConfig" doc:name="record-passenger-flight-by-lno"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:verify-call processor="db:insert" times="1" doc:name="DB INSERT called once"/>
+      <munit-tools:assert-that expression="#[payload.message]" is="#[MunitTools::notNullValue()]" doc:name="Payload has message"/>
+    </munit:validation>
+  </munit:test>
+  <sub-flow name="record-passenger-flight-by-lno-setevent">
+    <munit:set-event doc:name="Set LNO and payload">
+      <munit:payload value="#[output application/json --- {date_checkin: '2018-02-21T21:11:49Z', destination: 'JFK', flight_date: '2018-02-22', flight_no: 'KS404', origin: 'MUA'}]"/>
+      <munit:attributes value="#[{uriParams: {LNO: 'LNO123456'}}]" mediaType="application/java"/>
+    </munit:set-event>
+  </sub-flow>
+  <sub-flow name="record-passenger-flight-by-lno-dbinsert-spy">
+    <munit-tools:spy processor="db:insert" doc:name="DB INSERT">
+      <munit-tools:before-call>
+        <munit-tools:assert-that expression="#[upper(vars.sql)]" is="#[MunitTools::equalToIgnoringWhiteSpace(upper('INSERT INTO passenger_flights_checkin (loyalty_no,flight_date,flight_no,flight_origin,flight_destination,checkin_utc) VALUES (:lno,:flight_date,:flight_no,:flight_origin,:flight_destination,:checkin)'))]" doc:name="SQL correct"/>
+        <munit-tools:assert-that expression="#[vars.inputParameters.lno]" is="#[MunitTools::equalTo('LNO123456')]" doc:name="SQL input param lno correct"/>
+        <munit-tools:assert-that expression="#[vars.inputParameters.flight_date]" is="#[MunitTools::equalTo('2018-02-22')]" doc:name="SQL input param flight_date correct"/>
+        <munit-tools:assert-that expression="#[vars.inputParameters.flight_no]" is="#[MunitTools::equalTo('KS404')]" doc:name="SQL input param flight_no correct"/>
+        <munit-tools:assert-that expression="#[vars.inputParameters.flight_origin]" is="#[MunitTools::equalTo('MUA')]" doc:name="SQL input param flight_origin correct"/>
+        <munit-tools:assert-that expression="#[vars.inputParameters.flight_destination]" is="#[MunitTools::equalTo('JFK')]" doc:name="SQL input param flight_destination correct"/>
+        <!-- don't assert vars.inputParameters.checkin here -->
+      </munit-tools:before-call>
+    </munit-tools:spy>
+  </sub-flow>
+  <munit:test name="main-test-suite-record-passenger-flight-by-lno_date-checkin1-subseconds" description="record-passenger-flight-by-lno Date CheckIn 1 Sub-Seconds Truncated">
+    <munit:behavior>
+      <!-- basic assertions -->
+      <flow-ref name="record-passenger-flight-by-lno-dbinsert-spy" doc:name="record-passenger-flight-by-lno-dbinsert-spy"/>
+      <!-- additional assertions -->
+      <munit-tools:spy processor="db:insert" doc:name="DB INSERT">
+        <munit-tools:before-call>
+          <munit-tools:assert-that expression="#[vars.inputParameters.checkin]" is="#[MunitTools::equalTo('1985-04-12 23:20:50')]" doc:name="SQL input param checkin correct with truncated sub-seconds"/>
+        </munit-tools:before-call>
+      </munit-tools:spy>
+      <munit-tools:mock-when processor="db:insert" doc:name="DB INSERT called returns 1 affected row">
+        <munit-tools:then-return>
+          <!-- TODO: https://docs.mulesoft.com/connectors/database/database-documentation#StatementResult -->
+          <munit-tools:payload value="#[{ affectedRows: 1, generatedKeys: {} }]"/>
+        </munit-tools:then-return>
+      </munit-tools:mock-when>
+    </munit:behavior>
+    <munit:execution>
+      <munit:set-event doc:name="Set LNO and payload with milliseconds">
+        <munit:payload value="#[output application/json --- {date_checkin: '1985-04-12T23:20:50.52Z', destination: 'JFK', flight_date: '2018-02-22', flight_no: 'KS404', origin: 'MUA'}]"/>
+        <munit:attributes value="#[{uriParams: {LNO: 'LNO123456'}}]" mediaType="application/java"/>
+      </munit:set-event>
+      <flow-ref name="post:\passengers\(LNO)\flights:application\json:apiConfig" doc:name="record-passenger-flight-by-lno"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:verify-call processor="db:insert" times="1" doc:name="DB INSERT called once"/>
+      <munit-tools:assert-that expression="#[payload.message]" is="#[MunitTools::notNullValue()]" doc:name="Payload has message"/>
+    </munit:validation>
+  </munit:test>
+  <munit:test name="main-test-suite-record-passenger-flight-by-lno_date-checkin2-UTC" description="record-passenger-flight-by-lno Date CheckIn 2 UTC Conversion">
+    <munit:behavior>
+      <!-- basic assertions -->
+      <flow-ref name="record-passenger-flight-by-lno-dbinsert-spy" doc:name="record-passenger-flight-by-lno-dbinsert-spy"/>
+      <!-- additional assertions -->
+      <munit-tools:spy processor="db:insert" doc:name="DB INSERT">
+        <munit-tools:before-call>
+          <munit-tools:assert-that expression="#[vars.inputParameters.checkin]" is="#[MunitTools::equalTo('1996-12-20 00:39:57')]" doc:name="SQL input param checkin correct converted to UTC"/>
+        </munit-tools:before-call>
+      </munit-tools:spy>
+      <munit-tools:mock-when processor="db:insert" doc:name="DB INSERT called returns 1 affected row">
+        <munit-tools:then-return>
+          <!-- TODO: https://docs.mulesoft.com/connectors/database/database-documentation#StatementResult -->
+          <munit-tools:payload value="#[{ affectedRows: 1, generatedKeys: {} }]"/>
+        </munit-tools:then-return>
+      </munit-tools:mock-when>
+    </munit:behavior>
+    <munit:execution>
+      <munit:set-event doc:name="Set LNO and payload with timezone offset">
+        <munit:payload value="#[output application/json --- {date_checkin: '1996-12-19T16:39:57-08:00', destination: 'JFK', flight_date: '2018-02-22', flight_no: 'KS404', origin: 'MUA'}]"/>
+        <munit:attributes value="#[{uriParams: {LNO: 'LNO123456'}}]" mediaType="application/java"/>
+      </munit:set-event>
+      <flow-ref name="post:\passengers\(LNO)\flights:application\json:apiConfig" doc:name="record-passenger-flight-by-lno"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:verify-call processor="db:insert" times="1" doc:name="DB INSERT called once"/>
+      <munit-tools:assert-that expression="#[payload.message]" is="#[MunitTools::notNullValue()]" doc:name="Payload has message"/>
+    </munit:validation>
+  </munit:test>
+  <munit:test name="main-test-suite-record-passenger-flight-by-lno_strings-normalized" description="record-passenger-flight-by-lno Strings Normalized">
+    <munit:behavior>
+      <!-- basic assertions -->
+      <flow-ref name="record-passenger-flight-by-lno-dbinsert-spy" doc:name="record-passenger-flight-by-lno-dbinsert-spy"/>
+      <munit-tools:mock-when processor="db:insert" doc:name="DB INSERT called returns 1 affected row">
+        <munit-tools:then-return>
+          <!-- TODO: https://docs.mulesoft.com/connectors/database/database-documentation#StatementResult -->
+          <munit-tools:payload value="#[{ affectedRows: 1, generatedKeys: {} }]"/>
+        </munit-tools:then-return>
+      </munit-tools:mock-when>
+    </munit:behavior>
+    <munit:execution>
+      <munit:set-event doc:name="Set LNO and payload using messed-up strings">
+        <munit:payload value="#[output application/json --- {date_checkin: '2018-02-21T21:11:49Z', destination: '    jFk  ', flight_date: '2018-02-22', flight_no: '    ks404', origin: '     MuA  '}]"/>
+        <munit:attributes value="#[{uriParams: {LNO: 'LNO123456'}}]" mediaType="application/java"/>
+      </munit:set-event>
+      <flow-ref name="post:\passengers\(LNO)\flights:application\json:apiConfig" doc:name="record-passenger-flight-by-lno"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:verify-call processor="db:insert" times="1" doc:name="DB INSERT called once"/>
+      <munit-tools:assert-that expression="#[payload.message]" is="#[MunitTools::notNullValue()]" doc:name="Payload has message"/>
+    </munit:validation>
+  </munit:test>
+  <munit:test name="main-test-suite-record-passenger-flight-by-lno_dberror" description="record-passenger-flight-by-lno DB Error">
+    <munit:behavior>
+      <!-- basic assertions -->
+      <flow-ref name="record-passenger-flight-by-lno-dbinsert-spy" doc:name="record-passenger-flight-by-lno-dbinsert-spy"/>
+      <munit-tools:mock-when processor="db:insert" doc:name="DB INSERT called returns 1 affected row">
+        <munit-tools:then-return>
+          <munit-tools:error typeId="DB:QUERY_EXECUTION"/>
+        </munit-tools:then-return>
+      </munit-tools:mock-when>
+    </munit:behavior>
+    <munit:execution>
+      <flow-ref name="record-passenger-flight-by-lno-setevent" doc:name="record-passenger-flight-by-lno-setevent"/>
+      <flow-ref name="post:\passengers\(LNO)\flights:application\json:apiConfig" doc:name="record-passenger-flight-by-lno"/>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:verify-call processor="db:insert" times="1" doc:name="DB INSERT called once"/>
+      <munit-tools:assert-that expression="#[payload.message]" is="#[MunitTools::notNullValue()]" doc:name="Payload has message"/>
+      <munit-tools:assert-that expression="#[vars.httpStatus]" is="#[MunitTools::equalTo('400')]" doc:name="Status is 400"/>
+    </munit:validation>
+  </munit:test>
+</mule>

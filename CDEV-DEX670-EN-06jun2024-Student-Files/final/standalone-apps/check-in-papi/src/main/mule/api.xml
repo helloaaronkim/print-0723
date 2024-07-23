@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="      http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd       http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd   http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd  http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd    http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd  http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd  http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+  <!--
+  curl -ik -X PUT https://localhost:8081/api/v1/tickets/N123/checkin -u '...:...' -H 'Content-Type:application/json' -d '{ "lastName": "Mule", "numBags": 2 }'
+  curl -ik -X PUT https://localhost:8081/api/v1/tickets/N123/paymentApproval -u '...:...' -H 'Content-Type:application/json' -d '{ "payerID": "STJ8222K092ST", "paymentID": "PAY-1B56960729604235TKQQIYVY" }'
+  -->
+  <flow name="api-main">
+    <http:listener config-ref="apiHttpListenerConfig" path="/api/${api.majorVersion}/*">
+      <http:response statusCode="#[vars.httpStatus default 200]"/>
+      <http:error-response statusCode="#[vars.httpStatus default 500]">
+        <http:body><![CDATA[#[output application/json --- payload]]]></http:body>
+      </http:error-response>
+    </http:listener>
+    <apikit:router config-ref="apiConfig"/>
+    <error-handler ref="api-error-handler"/>
+  </flow>
+  <flow name="api-console">
+    <http:listener config-ref="apiHttpListenerConfig" path="/console/${api.majorVersion}/*">
+      <http:response statusCode="#[vars.httpStatus default 200]"/>
+      <http:error-response statusCode="#[vars.httpStatus default 500]">
+        <http:body><![CDATA[#[payload]]]></http:body>
+      </http:error-response>
+    </http:listener>
+    <apikit:console config-ref="apiConfig"/>
+    <error-handler ref="api-console-error-handler"/>
+  </flow>
+  <flow name="put:\tickets\(PNR)\checkin:application\json:apiConfig">
+    <set-variable variableName="PNR" value="#[attributes.uriParams.PNR]" doc:name="PNR"/>
+    <flow-ref name="check-in-by-pnr" doc:name="check-in-by-pnr"/>
+    <error-handler>
+      <on-error-continue type="MULE:COMPOSITE_ROUTING">
+        <ee:transform doc:name="Build error message">
+          <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+              output application/json
+
+              var nsp = error.errors[0].errorType.namespace
+              var id  = error.errors[0].errorType.identifier
+              var msg = if      (nsp == 'APP' and id == 'CANT_UPDATE_CHECKINS')         "Error updating checkins"
+              	        else if (nsp == 'APP' and id == 'CANT_CREATE_PAYMENT')          "Error creating payment"
+              	        else if (nsp == 'APP' and id == 'CANT_CREATE_PASSENGER_FLIGHT') "Error transferring flight data to Passenger Data SAPI"
+              	        else                                                            "Server Error"
+              ---
+              {message: msg}]]></ee:set-payload>
+          </ee:message>
+          <ee:variables>
+            <ee:set-variable variableName="httpStatus"><![CDATA[%dw 2.0
+              output application/java
+              ---
+              "500"]]></ee:set-variable>
+          </ee:variables>
+        </ee:transform>
+      </on-error-continue>
+      <on-error-continue type="JSON:SCHEMA_NOT_HONOURED" enableNotifications="false" logException="false">
+        <raise-error type="EXT:BAD_REQUEST" description="Bad data uploaded. The data should only contain properties for check-in." doc:name="EXT:BAD_REQUEST"/>
+      </on-error-continue>
+      <on-error-continue type="APP:LASTNAME_MISMATCH" enableNotifications="false" logException="false">
+        <raise-error type="EXT:BAD_REQUEST" description="Invalid passenger name record or bad data uploaded." doc:name="EXT:BAD_REQUEST"/>
+      </on-error-continue>
+    </error-handler>
+  </flow>
+  <flow name="put:\tickets\(PNR)\paymentApproval:application\json:apiConfig">
+    <set-variable variableName="PNR" value="#[attributes.uriParams.PNR]" doc:name="PNR"/>
+    <flow-ref name="payment-approval-by-pnr" doc:name="payment-approval-by-pnr"/>
+    <error-handler>
+      <on-error-continue doc:name="On Error Continue" type="OS:INVALID_KEY, OS:KEY_NOT_FOUND, OS:STORE_NOT_AVAILABLE">
+        <logger level="ERROR" message="Error calling external dependency"/>
+        <set-payload value="#[output application/json --- {message: 'Error accessing data from the Object Store.'}]" doc:name="Error"/>
+        <set-variable value="500" doc:name="httpStatus" variableName="httpStatus"/>
+      </on-error-continue>
+      <on-error-continue enableNotifications="false" logException="false" type="APP:INVALID_PAYMENT">
+        <choice doc:name="Choice">
+          <when expression="#[(error.muleMessage.payload default '') == 'Payment was not approved.']">
+            <set-payload value="#[output application/json --- {message: 'Invalid paymentId and payerId combination given. Cannot approve payment.'}]" doc:name="Error"/>
+            <set-variable value="403" doc:name="httpStatus" variableName="httpStatus"/>
+          </when>
+          <otherwise>
+            <set-payload value="#[output application/json --- {message: 'Invalid passenger name record or bad data uploaded.'}]" doc:name="Error"/>
+            <set-variable value="400" doc:name="httpStatus" variableName="httpStatus"/>
+          </otherwise>
+        </choice>
+      </on-error-continue>
+      <on-error-continue type="APP:CANT_CREATE_PAYMENT">
+        <logger level="ERROR" message="Error calling external dependency"/>
+        <set-payload value="#[output application/json --- {message: 'HTTP error creating payment in Paypal SAPI'}]" doc:name="Error"/>
+        <set-variable value="500" doc:name="httpStatus" variableName="httpStatus"/>
+      </on-error-continue>
+    </error-handler>
+  </flow>
+</mule>

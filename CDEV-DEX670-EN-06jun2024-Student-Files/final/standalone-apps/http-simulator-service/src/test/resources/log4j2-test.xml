@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<Configuration>
+  <Appenders>
+    <Console name="Console" target="SYSTEM_OUT">
+      <PatternLayout pattern="%-5p %d [%t] %c: %m%n"/>
+    </Console>
+  </Appenders>
+  <Loggers>
+    <!-- Http Logger shows wire traffic on DEBUG -->
+    <!--AsyncLogger name="org.mule.service.http.impl.service.HttpMessageLogger" level="DEBUG"/-->
+    <AsyncLogger name="org.mule.service.http" level="WARN"/>
+    <AsyncLogger name="org.mule.extension.http" level="WARN"/>
+    <!-- Reduce startup noise -->
+    <AsyncLogger name="com.mulesoft.mule.runtime.plugin" level="WARN"/>
+    <AsyncLogger name="org.mule.maven.client" level="WARN"/>
+    <AsyncLogger name="org.mule.runtime.core.internal.util" level="WARN"/>
+    <AsyncLogger name="org.quartz" level="WARN"/>
+    <AsyncLogger name="org.mule.munit.plugins.coverage.server" level="WARN"/>
+    <!-- Mule logger -->
+    <AsyncLogger name="org.mule.runtime.core.internal.processor.LoggerMessageProcessor" level="INFO"/>
+    <AsyncRoot level="INFO">
+      <AppenderRef ref="Console"/>
+    </AsyncRoot>
+  </Loggers>
+</Configuration>

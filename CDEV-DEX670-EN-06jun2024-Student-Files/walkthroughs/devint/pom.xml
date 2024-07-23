@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>a63e6d25-8aaf-4512-b36d-d91b90a55c4a</groupId>
+  <artifactId>walkthroughs-solutions-devint-modules-pom</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <modules>
+    <module>module01/wt1-1_starter/apps-commons/pom-ci.xml</module>
+    <module>module01/wt1-1_starter/check-in-papi/pom-ci.xml</module>
+    <module>module01/wt1-2_solution/apps-commons/pom-ci.xml</module>
+    <module>module01/wt1-2_solution/check-in-papi/pom-ci.xml</module>
+
+    <module>module01/wt1-3_solution/check-in-papi/pom-ci.xml</module>
+    <module>module01/wt1-4_starter/paypal-sapi/pom-ci.xml</module>
+    <module>module01/wt1-4_solution/paypal-sapi/pom-ci.xml</module>
+    <module>module01/wt1-5_starter/flights-management-sapi/pom-ci.xml</module>
+    <module>module01/wt1-5_solution/flights-management-sapi/pom-ci.xml</module>
+    <module>module01/wt1-6_solution/flights-management-sapi/pom-ci.xml</module>
+    <module>module02/wt2-1_solution/flights-management-sapi/pom-ci.xml</module>
+    <module>module02/wt2-2_solution/flights-management-sapi/pom-ci.xml</module>
+    <module>module02/wt2-3_solution/flights-management-sapi/pom-ci.xml</module>
+    <module>module02/wt2-4_starter/mobile-notifications-eapp/pom-ci.xml</module>
+    <module>module02/wt2-4_solution/mobile-notifications-eapp/pom-ci.xml</module>
+    <module>module03/wt3-1_solution/flights-management-sapi/pom-ci.xml</module>
+    <module>module03/wt3-2_solution/flights-management-sapi/pom-ci.xml</module>
+    <module>module03/wt3-3_solution/flights-management-sapi/pom-ci.xml</module>
+    <module>module04/wt4-1_solution/check-in-papi/pom-ci.xml</module>
+    <module>module04/wt4-2_solution/flights-management-sapi/pom-ci.xml</module>
+    <module>module04/wt4-2_solution/mobile-notifications-eapp/pom-ci.xml</module>
+    <module>module04/wt4-3_solution/apps-commons/pom-ci.xml</module>
+    <module>module04/wt4-3_solution/check-in-papi/pom-ci.xml</module>
+    <module>module05/wt5-1_solution/check-in-papi/pom-ci.xml</module>
+    <module>module05/wt5-2_solution/check-in-papi/pom-ci.xml</module>
+    <module>module06/wt6-1_solution/apps-commons/pom-ci.xml</module>
+    <module>module06/wt6-1_solution/check-in-papi/pom-ci.xml</module>
+    <module>module06/wt6-1_solution/resilience-mule-extension/pom-ci.xml</module>
+    <module>module06/wt6-2_solution/custom-message-logging-policy/pom-ci.xml</module>
+  </modules>
+</project>

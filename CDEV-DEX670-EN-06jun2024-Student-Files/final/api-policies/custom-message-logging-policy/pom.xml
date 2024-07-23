@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>a63e6d25-8aaf-4512-b36d-d91b90a55c4a</groupId>
+    <artifactId>api-policies-parent-pom</artifactId>
+    <version>1.0.27</version>
+    <relativePath>../parent-pom/pom.xml</relativePath>
+  </parent>
+  <!-- Must be hardcoded with Exchange v3. Exchange will return an error on mvn deploy otherwise as it validates the unresolved pom.-->
+  <groupId>a63e6d25-8aaf-4512-b36d-d91b90a55c4a</groupId>
+  <artifactId>custom-message-logging</artifactId>
+  <version>1.0.27</version>
+  <name>custom-message-logging</name>
+  <description>Custom Message Logging API Policy Template</description>
+  <packaging>mule-policy</packaging>
+  <properties>
+    <tags>logging,operations</tags>
+    <state>DEVELOPMENT</state>
+  </properties>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <!-- replace %...% placeholders in custom API policies' codebase -->
+        <groupId>com.google.code.maven-replacer-plugin</groupId>
+        <artifactId>replacer</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies/>
+</project>

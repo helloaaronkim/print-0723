@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  MuleSoft Training - Anypoint Platform Development: Level 2
+  %%
+  Copyright (C) 2019 - 2023 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
+  %%
+  The software in this package is published under the terms of the
+  Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License,
+  a copy of which has been included with this distribution in the LICENSE.txt file.
+  #L%
+  -->
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="  http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd  http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+  <!--
+  The including Mule app MUST:
+  - include <import file="error-common.xml" doc:name="Import error-common.xml" />
+  -->
+  <error-handler name="api-error-handler">
+    <on-error-propagate type="APIKIT:BAD_REQUEST">
+      <ee:transform>
+        <ee:message>
+          <ee:set-payload><![CDATA[%dw 2.0
+            output application/json
+            ---
+            {message: "Bad request"}]]></ee:set-payload>
+        </ee:message>
+        <ee:variables>
+          <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+        </ee:variables>
+      </ee:transform>
+    </on-error-propagate>
+    <on-error-propagate when="error.errorType.namespace == 'EXT' and error.errorType.identifier == 'BAD_REQUEST'">
+      <!-- note: type="EXT:BAD_REQUEST", which can't be used because the including app may not declare EXT:BAD_REQUEST -->
+      <!-- like APIKIT:BAD_REQUEST but uses error description as message to client -->
+      <ee:transform>
+        <ee:message>
+          <ee:set-payload><![CDATA[%dw 2.0
+            output application/json
+            ---
+            {message: error.description}]]></ee:set-payload>
+        </ee:message>
+        <ee:variables>
+          <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+        </ee:variables>
+      </ee:transform>
+    </on-error-propagate>
+    <on-error-propagate type="APIKIT:NOT_FOUND">
+      <ee:transform>
+        <ee:message>
+          <ee:set-payload><![CDATA[%dw 2.0
+            output application/json
+            ---
+            {message: "Resource not found"}]]></ee:set-payload>
+        </ee:message>
+        <ee:variables>
+          <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+        </ee:variables>
+      </ee:transform>
+    </on-error-propagate>
+    <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+      <ee:transform>
+        <ee:message>
+          <ee:set-payload><![CDATA[%dw 2.0
+            output application/json
+            ---
+            {message: "Method not allowed"}]]></ee:set-payload>
+        </ee:message>
+        <ee:variables>
+          <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+        </ee:variables>
+      </ee:transform>
+    </on-error-propagate>
+    <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+      <ee:transform>
+        <ee:message>
+          <ee:set-payload><![CDATA[%dw 2.0
+            output application/json
+            ---
+            {message: "Not acceptable"}]]></ee:set-payload>
+        </ee:message>
+        <ee:variables>
+          <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+        </ee:variables>
+      </ee:transform>
+    </on-error-propagate>
+    <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+      <ee:transform>
+        <ee:message>
+          <ee:set-payload><![CDATA[%dw 2.0
+            output application/json
+            ---
+            {message: "Unsupported media type"}]]></ee:set-payload>
+        </ee:message>
+        <ee:variables>
+          <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+        </ee:variables>
+      </ee:transform>
+    </on-error-propagate>
+    <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+      <ee:transform>
+        <ee:message>
+          <ee:set-payload><![CDATA[%dw 2.0
+            output application/json
+            ---
+            {message: "Not implemented"}]]></ee:set-payload>
+        </ee:message>
+        <ee:variables>
+          <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+        </ee:variables>
+      </ee:transform>
+    </on-error-propagate>
+    <on-error-propagate when="error.errorType.namespace == 'EXT'">
+      <!-- all other errors in EXT namespace are treated as 500s with error description or at least identifier as message to client -->
+      <ee:transform>
+        <ee:message>
+          <ee:set-payload><![CDATA[%dw 2.0
+            output application/json
+            var defMsg  = "Internal server error: " ++ error.errorType.identifier
+            var desc    = error.description
+            var msg     = if (isBlank(desc)) defMsg else desc
+            ---
+            {message: msg}]]></ee:set-payload>
+        </ee:message>
+        <ee:variables>
+          <ee:set-variable variableName="httpStatus">500</ee:set-variable>
+        </ee:variables>
+      </ee:transform>
+    </on-error-propagate>
+    <on-error-propagate>
+      <!-- all other errors are treated as 500s without any information exposed to client -->
+      <ee:transform>
+        <ee:message>
+          <ee:set-payload><![CDATA[%dw 2.0
+            output application/json
+            ---
+            {message: "Internal server error"}]]></ee:set-payload>
+        </ee:message>
+        <ee:variables>
+          <ee:set-variable variableName="httpStatus">500</ee:set-variable>
+        </ee:variables>
+      </ee:transform>
+    </on-error-propagate>
+  </error-handler>
+  <error-handler name="api-console-error-handler">
+    <on-error-propagate type="APIKIT:NOT_FOUND">
+      <ee:transform>
+        <ee:message>
+          <ee:set-payload><![CDATA[%dw 2.0
+            output application/json
+            ---
+            {message: "Resource not found"}]]></ee:set-payload>
+        </ee:message>
+        <ee:variables>
+          <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+        </ee:variables>
+      </ee:transform>
+    </on-error-propagate>
+  </error-handler>
+  <error-handler name="http-retry-error-handler">
+    <on-error-propagate when="#[(['TOO_MANY_REQUESTS','INTERNAL_SERVER_ERROR','SERVICE_UNAVAILABLE','TIMEOUT','CONNECTIVITY'] contains error.errorType.identifier)]" enableNotifications="false" logException="false">
+      <logger message="A presumably transient error occurred while invoking a web API (#[error.errorType.namespace ++ ':' ++ error.errorType.identifier ++ ' ' ++ error.description]) - triggering re-try" level="INFO"/>
+    </on-error-propagate>
+    <on-error-continue when="#[((error.errorType.namespace == 'HTTP') or (['EXPRESSION','STREAM_MAXIMUM_SIZE_EXCEEDED'] contains error.errorType.identifier))]" enableNotifications="true" logException="false">
+      <logger message="A permanent error occurred while invoking a web API (#[error.errorType.namespace ++ ':' ++ error.errorType.identifier ++ ' ' ++ error.description]) - giving up" level="ERROR"/>
+    </on-error-continue>
+    <on-error-propagate enableNotifications="false" logException="true">
+      <logger message="An unknown error, which is assumed to be transient, occurred while invoking a web API (#[error.errorType.namespace ++ ':' ++ error.errorType.identifier ++ ' ' ++ error.description]) - triggering re-try" level="INFO"/>
+    </on-error-propagate>
+  </error-handler>
+</mule>

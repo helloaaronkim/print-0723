@@ -1,0 +1,18 @@
+{
+ "template" : {
+   "groupId" : "1236a677-c18b-4613-b692-4ad2f7507655",
+   "assetId" : "custom-message-logging-policy",
+   "version" : "1.0.0-SNAPSHOT"
+ },
+ "api": [
+   {
+     "id": "16352527"
+   }
+ ],
+ "order": 1,
+ "configuration" : {
+   "message" : "#['Hello']",
+   "beforeRequest" : true,
+   "afterRequest" : false
+ }
+}
