@@ -42,9 +42,19 @@
     <error-handler ref="api-console-error-handler"/>
   </flow>
   <flow name="put:\tickets\(PNR)\checkin:application\json:apiConfig">
-    <set-variable variableName="PNR" value="#[attributes.uriParams.PNR]" doc:name="PNR"/>
+    <set-variable variableName="PNR" value="#[attributes.uriParams.PNR]" />
     <flow-ref name="check-in-by-pnr" doc:name="check-in-by-pnr"/>
+    <choice>
+      <when expression="#[payload]">
+        <set-payload value="#[output application/json --- {message: 'Passenger check-in successful.'}]" doc:name="Passenger check-in successful."/>
+      </when>
+      <otherwise>
+        <set-payload value="#[output application/json --- {message: 'Invalid passenger name record given.'}]" doc:name="Invalid passenger name record given."/>
+        <set-variable variableName="httpStatus" value="400" doc:name="httpStatus 400"/>
+      </otherwise>
+    </choice>
   </flow>
+
   <flow name="get:\tickets\(PNR):apiConfig">
     <set-variable variableName="PNR" value="#[attributes.uriParams.PNR]" doc:name="PNR"/>
     <flow-ref name="get-ticket-by-pnr" doc:name="get-ticket-by-pnr"/>

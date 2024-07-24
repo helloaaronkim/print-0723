@@ -2,20 +2,23 @@
 <!-- #%L MuleSoft Training - Anypoint Platform Development: Level 2 %% Copyright (C) 2019 - 2021 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com 
 	%% The software in this package is published under the terms of the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International 
 	Public License, a copy of which has been included with this distribution in the LICENSE.txt file. #L% -->
-<mule xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns="http://www.mulesoft.org/schema/mule/core"
+<mule xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq" xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns="http://www.mulesoft.org/schema/mule/core"
 	xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
 	xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
 	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
 	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="  http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd  http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd   http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd  http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd    http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
-http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd">
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd">
 	<flow name="check-in-by-pnr">
 		<logger level="INFO" message="#['Checking-in by PNR: ' ++ (vars.PNR default '')]" doc:name="START" />
 		<!-- TODO: create checkIn SOAP payload -->
 		<logger level="INFO" message="Before calling checkIn SOAP WS" doc:name="Before WS" />
 		<try>
 			<!-- TODO: call checkIn on Flights Management system SOAP service -->
-			<flow-ref doc:name="flights-wsc-check-in" doc:id="17257bce-bfde-4e39-bd1c-fabe67c50cdd" name="flights-wsc-check-in"/>
+			<flow-ref doc:name="flights-wsc-check-in" doc:id="17257bce-bfde-4e39-bd1c-fabe67c50cdd" name="flights-wsc-check-in" />
 			<error-handler>
 				<on-error-continue>
 					<raise-error type="APP:CANT_CHECKIN" doc:name="Raise APP:CANT_CHECKIN error" />
@@ -23,9 +26,62 @@ http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/
 			</error-handler>
 		</try>
 		<logger level="INFO" message="After receiving checkIn SOAP WS response" doc:name="After WS" />
-		<set-payload value="#[output application/json --- {message: 'Passenger check-in successful.'}]"
+		<set-payload value="#[output application/java --- payload.body.checkInResponse.return as Boolean]"
 			doc:name="Success JSON response" />
 		<logger level="INFO" message="Checked-in by PNR" doc:name="END" />
+	</flow>
+	<flow name="receive-cancellation-notification">
+		<http:listener path="/api/cancelFlight" allowedMethods="POST" config-ref="apiHttpListenerConfig"
+			doc:name="POST /api/cancelFlight">
+			<http:response statusCode="#[vars.httpStatus default 202]">
+				<http:body>#[output text/plain --- vars.response default'OK']</http:body>
+			</http:response>
+		</http:listener>
+		<logger level="INFO" message="Received Cancellation Notification" doc:name="Received Cancellation Notification" />
+		<vm:publish doc:name="flight-cancel-notifs-q" doc:id="3cdf70c4-955c-48cc-8533-630cee12083b" config-ref="vmConfig"
+			queueName="flight-cancel-notifs-q" timeoutUnit="MINUTES" sendCorrelationId="ALWAYS" />
+	</flow>
+	<flow name="deliver-flight-cancelled-event" doc:id="d3020129-4661-426a-b54c-2a1a4dfe97ac">
+		<vm:listener queueName="flight-cancel-notifs-q" doc:name="flight-cancel-notifs-q"
+			doc:id="671ffe00-b818-4341-aed2-4c324ffb6584" config-ref="vmConfig" transactionalAction="ALWAYS_BEGIN" timeout="300">
+			<redelivery-policy maxRedeliveryCount="3" idExpression="#[correlationId]" />
+		</vm:listener>
+		<logger level="INFO" doc:name="'Received'" doc:id="8251b362-e269-4c09-8d0c-52a0206e3baa" message="#['Received']" />
+		<try doc:name="Try" doc:id="d960b376-1eb2-4ba5-a1ad-bc95d3056c0a" transactionalAction="BEGIN_OR_JOIN">
+			<ee:transform>
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+          output application/json
+          ---
+          {
+            pnr: payload.CancellationNotification.PNR,
+            lastNameOfPassenger: payload.CancellationNotification.PassengerLastName
+          }]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			<set-variable value="#[true]" doc:name="msgValid true " doc:id="f3ac02bf-e6db-4457-a4c8-558931536f50" variableName="msgValid"/>
+			<error-handler >
+				<on-error-continue enableNotifications="false" logException="false">
+				<flow-ref name="send-to-vm-dlq" doc:name="send-to-vm-dlq" />
+					<set-variable value="#[false]" doc:name="msgValid false" doc:id="90c9dbcb-50fb-4474-9e0b-e26463d92a64" variableName="msgValid"/>
+			</on-error-continue>
+			</error-handler>
+		</try>
+		<choice doc:name="Choice" doc:id="b811246b-d30d-43a5-8251-1661e8cefc7d" >
+			<when expression="#[vars.msgValid]">
+				<anypoint-mq:publish doc:name="Publish" doc:id="6faed59c-afb0-4a64-bd56-09cf7278b2fb" config-ref="amqConfig" destination="cancelled-flights-exchg-dev"/>
+			</when>
+		</choice>
+	</flow>
+	<sub-flow name="send-to-vm-dlq">
+		<vm:publish queueName="flight-cancel-notifs-dlq" timeout="5000" timeoutUnit="MILLISECONDS" config-ref="vmConfig"
+			doc:name="flight-cancel-notifs-dlq" />
+	</sub-flow>
+	<flow name="handle-dlq">
+		<vm:listener queueName="flight-cancel-notifs-dlq" config-ref="vmConfig" doc:name="flight-cancel-notifs-dlq" timeout="300">
+			<redelivery-policy maxRedeliveryCount="3" idExpression="#[correlationId]" />
+		</vm:listener>
+		<logger level="INFO" message="Processing message from DLQ" />
 	</flow>
 	<sub-flow name="flights-wsc-check-in" doc:id="ce4053a2-7441-4bd2-8bd4-2b2f4d7c5b25">
 		<wsc:consume operation="checkIn" config-ref="flightsWSCConfig">
@@ -125,4 +181,35 @@ ns0#checkIn: {
 		</ee:transform>
 		<logger level="INFO" message="Got ticket by PNR" doc:name="END" />
 	</flow>
+	<flow name="register-callback">
+		<scheduler>
+			<scheduling-strategy>
+				<fixed-frequency frequency="365000" timeUnit="DAYS" />
+			</scheduling-strategy>
+		</scheduler>
+		<ee:transform>
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+        output application/xml
+        ns ns0 http://flightsMgmt.sword.com/
+        ---
+        {
+        ns0#registerForCancellationNotifications: {
+            callbackURL: p("api.callback.url")
+        }
+        }]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<try>
+			<flow-ref name="register-for-cancellation-notifications" doc:name="register-for-cancellation-notifications" />
+			<error-handler>
+				<on-error-continue>
+					<raise-error type="APP:CANT_REGISTER_CALLBACK" doc:name="APP:CANT_REGISTER_CALLBACK" />
+				</on-error-continue>
+			</error-handler>
+		</try>
+	</flow>
+	<sub-flow name="register-for-cancellation-notifications">
+		<wsc:consume operation="registerForCancellationNotifications" config-ref="flightsWSCConfig" />
+	</sub-flow>
 </mule>

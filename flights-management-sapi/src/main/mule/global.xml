@@ -2,14 +2,16 @@
 <!-- #%L MuleSoft Training - Anypoint Platform Development: Level 2 %% Copyright (C) 2019 - 2021 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com 
 	%% The software in this package is published under the terms of the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International 
 	Public License, a copy of which has been included with this distribution in the LICENSE.txt file. #L% -->
-<mule xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns="http://www.mulesoft.org/schema/mule/core"
+<mule xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq" xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns="http://www.mulesoft.org/schema/mule/core"
 	xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
-	xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
-	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
 	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
-	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="  http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd   http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd   http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd  http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd    http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
-http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd">
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="  http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd   http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd   http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd  http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd    http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd">
 	<global-property name="env" value="dev" doc:name="Default env to dev" />
 	<!-- 1st def of a property is preserved, so env-dependent takes priority over env-independent -->
 	<configuration-properties file="${env}-properties.yaml" doc:name="Env Config Props" />
@@ -30,9 +32,29 @@ http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/
 	<global-property name="encrypt.key" value="secure12345" />
 	<wsc:config name="flightsWSCConfig">
 		<wsc:connection
-			wsdlLocation="https://tngaa-flights-management-devx-9yj2rh.d5n5q8.usa-e1.cloudhub.io/api/v1/FlightsManagementService?wsdl"
+			wsdlLocation="https://tngaa-flights-management-devx.nonprod-internalps.anyair.net/api/v1/FlightsManagementService?wsdl"
 			service="FlightsManagementService" port="FlightsManagementPort"
-			address="https://tngaa-flights-management-devx-9yj2rh.d5n5q8.usa-e1.cloudhub.io/api/v1/FlightsManagementService">
+			address="https://tngaa-flights-management-devx.nonprod-internalps.anyair.net/api/v1/FlightsManagementService">
+			<wsc:custom-transport-configuration >
+				<wsc:http-transport-configuration requesterConfig="flightsWSHTTPConfig" />
+			</wsc:custom-transport-configuration>
+			<wsc:web-service-security actor="http://schemas.xmlsoap.org/soap/actor/next" />
 		</wsc:connection>
 	</wsc:config>
+	<tls:context name="flightsWSTLSContext" doc:name="TLS Context" doc:id="f76ffa04-bf22-4763-906b-364e4ef49dbb" >
+		<tls:key-store type="pkcs12" path="certs/clients-to-nonprod-internalps.p12" alias="client" keyPassword="muleclient2021" password="muleclient2021" />
+	</tls:context>
+	<http:request-config name="flightsWSHTTPConfig" doc:name="HTTP Request configuration" doc:id="f66827cf-0c9d-435d-8e17-5f18b0ed52ff" >
+		<http:request-connection protocol="HTTPS" tlsContext="flightsWSTLSContext" />
+	</http:request-config>
+	<vm:config name="vmConfig" doc:name="VM Config" doc:id="cda7d3d1-69f9-48c8-ac33-ba522007f1f2" >
+		<vm:queues >
+			<vm:queue queueName="flight-cancel-notifs-q" queueType="PERSISTENT" maxOutstandingMessages="100" />
+			<vm:queue queueName="flight-cancel-notifs-dlq" queueType="PERSISTENT" maxOutstandingMessages="1000" />
+		</vm:queues>
+	</vm:config>
+	<configuration doc:name="Configuration" doc:id="282fb2a7-acbc-4e2e-ab29-e320c7b8b776" defaultTransactionTimeout="3000000"/>
+	<anypoint-mq:config name="amqConfig" doc:name="Anypoint MQ Config" doc:id="54125cc1-bd4e-4a5b-bb6c-cdad2a443e4c" >
+		<anypoint-mq:connection url="https://mq-ap-northeast-1.anypoint.mulesoft.com/api/v1/organizations/3046cb5e-566b-4974-b233-3aad23b796bf/environments/d752d0fb-acc1-4dbd-9c6e-8019d718d6da" clientId="29a2dfd4f16449cc996626b6e2109c42" clientSecret="63dE3DC0904943Ffbc16d3A74ce0B635" />
+	</anypoint-mq:config>
 </mule>

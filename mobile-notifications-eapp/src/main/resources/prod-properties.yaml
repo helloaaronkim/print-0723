@@ -9,16 +9,4 @@
 # a copy of which has been included with this distribution in the LICENSE.txt file.
 # #L%
 ###
-# Autodiscovery API ID in API Manager in this environment
-api:
-  id: "15620138"
-  callback:
-    base: "https://flights-management-sapi-dev-uniqid.shard.usa-e2.cloudhub.io"
-    
-tls.keystore:
-  type:  "pkcs12"
-  path:  "certs/${project.name}-dev.p12" # replaced through Maven resource filtering
-  alias: "server"
 
-flights:
-  alive: "https://tngaa-flights-management-devx-9yj2rh.d5n5q8.usa-e1.cloudhub.io/alive"

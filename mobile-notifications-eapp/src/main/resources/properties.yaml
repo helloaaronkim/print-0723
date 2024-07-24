@@ -9,6 +9,7 @@
 # a copy of which has been included with this distribution in the LICENSE.txt file.
 # #L%
 ###
+# All environments are configured for deployment to CH
 encrypt:
   key: "to-be-given-at-runtime"
 
@@ -22,15 +23,7 @@ anypoint.platform.visualizer.layer: ${api.layer} # replaced through Maven resour
 app:
   name:    ${project.name} # replaced through Maven resource filtering
   version: ${project.version}    # replaced through Maven resource filtering
+  email: "mobile.notifications.eapp@anyairline.com"
 
-api:
-  raml:          "flights-management-sapi.raml"
-  majorVersion:  "v1"
-  callback:
-    path: "/api/cancelFlight"
-    url: "${api.callback.base}${api.callback.path}"
-
-
-https:
+http:
   port: "8081"
-  
