@@ -45,7 +45,7 @@
 		</http:request-connection>
 	</http:request-config>
 	<http:request-config name="paypalSapiConfig" basePath="/api/v1">
-		<http:request-connection host="tngaa-paypal-sapi-dev-9yj2rh.rajrd4-2.usa-e1.cloudhub.io" protocol="HTTPS">
+		<http:request-connection host="not-found-tngaa-paypal-sapi-dev-9yj2rh.rajrd4-2.usa-e1.cloudhub.io" protocol="HTTPS">
 			<http:authentication>
 				<http:basic-authentication username="e66105d66e8b4520b091127620221cce"
 					password="A1c099D51C50420b84641D71b229EBac" />

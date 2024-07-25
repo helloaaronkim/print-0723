@@ -31,4 +31,5 @@
 			<vm:queue queueName="mobile-app-native-notifs-q" queueType="PERSISTENT" />
 		</vm:queues>
 	</vm:config>
+	<anypoint-mq:circuit-breaker name="circuitBreaker" tripTimeout="3000" doc:name="Circuit breaker" doc:id="774bce89-0c45-4416-97be-79a8a7ebe609" onErrorTypes="VM:CONNECTIVITY" errorsThreshold="3"/>
 </mule>

@@ -2,16 +2,21 @@
 <!-- #%L MuleSoft Training - Anypoint Platform Development: Level 2 %% Copyright (C) 2019 - 2021 MuleSoft, Inc. All rights reserved. http://www.mulesoft.com 
 	%% The software in this package is published under the terms of the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International 
 	Public License, a copy of which has been included with this distribution in the LICENSE.txt file. #L% -->
-<mule xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq" xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+<mule xmlns:json="http://www.mulesoft.org/schema/mule/json"
+	xmlns:xml-module="http://www.mulesoft.org/schema/mule/xml-module" xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq" xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
 	xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns="http://www.mulesoft.org/schema/mule/core"
 	xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
-	xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
-	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
-	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="  http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd  http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd   http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd  http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd    http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+	xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd   http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd  http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd   http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd  http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd    http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
 http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
-http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd">
+http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd
+http://www.mulesoft.org/schema/mule/xml-module http://www.mulesoft.org/schema/mule/xml-module/current/mule-xml-module.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd">
 	<flow name="check-in-by-pnr">
 		<logger level="INFO" message="#['Checking-in by PNR: ' ++ (vars.PNR default '')]" doc:name="START" />
 		<!-- TODO: create checkIn SOAP payload -->
@@ -38,8 +43,21 @@ http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/m
 			</http:response>
 		</http:listener>
 		<logger level="INFO" message="Received Cancellation Notification" doc:name="Received Cancellation Notification" />
+		<set-variable variableName="originalPayload" value="#[output text/plain --- payload.^raw]"
+			doc:name="originalPayload = payload.^raw" />
+		<validation:all doc:name="All" doc:id="40926fb4-15bb-44c6-ad2a-61cb89666f80" >
+			<validation:is-true expression="#[var ct = attributes.headers.'content-type' --- ((not isBlank(ct)) and (lower(ct) contains '/xml'))]" doc:name="content-type" />
+			<xml-module:validate-schema doc:name="schemas/CancellationNotification.xsd" doc:id="2f6794f5-74c0-4098-8aae-b13a74620f37" schemas="schemas/CancellationNotification.xsd" />
+		</validation:all>
 		<vm:publish doc:name="flight-cancel-notifs-q" doc:id="3cdf70c4-955c-48cc-8533-630cee12083b" config-ref="vmConfig"
 			queueName="flight-cancel-notifs-q" timeoutUnit="MINUTES" sendCorrelationId="ALWAYS" />
+		<error-handler>
+			<on-error-continue when="#[['VALIDATION', 'XML-MODULE'] contains error.errorType.namespace]" enableNotifications="true" logException="true">
+				<set-variable variableName="httpStatus" value="400" doc:name="httpStatus = 400" />
+				<set-variable variableName="response" value="#[output text/plain --- vars.originalPayload]"
+					doc:name="response = vars.originalPayload" />
+			</on-error-continue>
+		</error-handler>
 	</flow>
 	<flow name="deliver-flight-cancelled-event" doc:id="d3020129-4661-426a-b54c-2a1a4dfe97ac">
 		<vm:listener queueName="flight-cancel-notifs-q" doc:name="flight-cancel-notifs-q"
@@ -49,27 +67,37 @@ http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/m
 		<logger level="INFO" doc:name="'Received'" doc:id="8251b362-e269-4c09-8d0c-52a0206e3baa" message="#['Received']" />
 		<try doc:name="Try" doc:id="d960b376-1eb2-4ba5-a1ad-bc95d3056c0a" transactionalAction="BEGIN_OR_JOIN">
 			<ee:transform>
-			<ee:message>
-				<ee:set-payload><![CDATA[%dw 2.0
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
           output application/json
           ---
           {
             pnr: payload.CancellationNotification.PNR,
             lastNameOfPassenger: payload.CancellationNotification.PassengerLastName
           }]]></ee:set-payload>
-			</ee:message>
-		</ee:transform>
-			<set-variable value="#[true]" doc:name="msgValid true " doc:id="f3ac02bf-e6db-4457-a4c8-558931536f50" variableName="msgValid"/>
-			<error-handler >
+				</ee:message>
+			</ee:transform>
+			<json:validate-schema doc:name="schemas/FlightCancelledEvent.schema.json" doc:id="8d84ad39-afd4-4871-9b7b-4e53cda23c8b" schema="schemas/FlightCancelledEvent.schema.json"/>
+			<set-variable value="#[true]" doc:name="msgValid true " doc:id="f3ac02bf-e6db-4457-a4c8-558931536f50"
+				variableName="msgValid" />
+			<error-handler>
 				<on-error-continue enableNotifications="false" logException="false">
-				<flow-ref name="send-to-vm-dlq" doc:name="send-to-vm-dlq" />
-					<set-variable value="#[false]" doc:name="msgValid false" doc:id="90c9dbcb-50fb-4474-9e0b-e26463d92a64" variableName="msgValid"/>
-			</on-error-continue>
+					<flow-ref name="send-to-vm-dlq" doc:name="send-to-vm-dlq" />
+					<set-variable value="#[false]" doc:name="msgValid false" doc:id="90c9dbcb-50fb-4474-9e0b-e26463d92a64"
+						variableName="msgValid" />
+				</on-error-continue>
 			</error-handler>
 		</try>
-		<choice doc:name="Choice" doc:id="b811246b-d30d-43a5-8251-1661e8cefc7d" >
+		<choice doc:name="Choice" doc:id="b811246b-d30d-43a5-8251-1661e8cefc7d">
 			<when expression="#[vars.msgValid]">
-				<anypoint-mq:publish doc:name="Publish" doc:id="6faed59c-afb0-4a64-bd56-09cf7278b2fb" config-ref="amqConfig" destination="cancelled-flights-exchg-dev"/>
+				<anypoint-mq:publish doc:name="Publish" doc:id="6faed59c-afb0-4a64-bd56-09cf7278b2fb" config-ref="amqConfig"
+					destination="cancelled-flights-exchg-dev" messageId="#[correlationId]">
+					<anypoint-mq:properties ><![CDATA[#[output application/json
+---
+{
+	"message": "ありがとうございました。後1日最後まで頑張りましょうー！"
+}]]]></anypoint-mq:properties>
+				</anypoint-mq:publish>
 			</when>
 		</choice>
 	</flow>
