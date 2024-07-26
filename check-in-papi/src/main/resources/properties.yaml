@@ -19,3 +19,20 @@ api:
   
 https:
   port: "8081"
+
+external:
+  flightsManagementSapi:
+    host:     "tngaa-flights-management-sapi-dev-9yj2rh.rajrd4-2.usa-e1.cloudhub.io"
+    responseTimeout: "5000"
+    basePath: "/api/v1"
+    aliveUrl: "https://${external.flightsManagementSapi.host}/alive"
+  passengerDataSapi:
+    host:     "tngaa-passenger-data-sapi-dev-9yj2rh.rajrd4-2.usa-e1.cloudhub.io"
+    responseTimeout: "2000"
+    basePath: "/api/v1"
+    aliveUrl: "https://${external.passengerDataSapi.host}/alive"
+  paypalSapi:
+    host:     "tngaa-paypal-sapi-dev-9yj2rh.rajrd4-2.usa-e1.cloudhub.io"
+    responseTimeout: "2000"
+    basePath: "/api/v1"
+    aliveUrl: "https://${external.paypalSapi.host}/alive"

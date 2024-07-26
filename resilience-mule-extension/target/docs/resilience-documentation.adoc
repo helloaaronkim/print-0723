@@ -1,0 +1,104 @@
+
+
+= Resilience Module Connector Reference
+
+
+This module relies in runtime provided components
+
+
+
+== Configurations
+
+== Operations
+
+[[IsEndpointAlive]]
+== Is Endpoint Alive
+`<resilience:is-endpoint-alive>`
+
+
+Check if the given URL can be reached by HTTP GET
+
+
+=== Parameters
+
+[%header%autowidth.spread]
+|===
+| Name | Type | Description | Default Value | Required
+| URL a| String |  |  | *x*{nbsp}
+| Response timeout in Milliseconds a| Number |  |  #[2000] | {nbsp}
+| Max Retries a| Number |  |  #[3] | {nbsp}
+| Milliseconds Between Retries a| Number |  |  #[2000] | {nbsp}
+| Target Variable a| String |  The name of a variable on which the operation's output will be placed |  | {nbsp}
+| Target Value a| String |  An expression that will be evaluated against the operation's output and the outcome of that expression will be stored in the target variable |  #[payload] | {nbsp}
+| Error Mappings a| Array of <<ErrorMapping>> |  Set of error mappings |  | {nbsp}
+|===
+
+=== Output
+
+[%autowidth.spread]
+|===
+| *Type* a| Boolean
+|===
+
+
+
+
+[[RetryHttp]]
+== Retry Http
+`<resilience:retry-http>`
+
+
+Retry a HTTP GET request
+
+
+=== Parameters
+
+[%header%autowidth.spread]
+|===
+| Name | Type | Description | Default Value | Required
+| URL a| String |  |  | *x*{nbsp}
+| Response timeout in Milliseconds a| Number |  |  #[2000] | {nbsp}
+| Max Retries a| Number |  |  #[3] | {nbsp}
+| Milliseconds Between Retries a| Number |  |  #[2000] | {nbsp}
+| Target Variable a| String |  The name of a variable on which the operation's output will be placed |  | {nbsp}
+| Target Value a| String |  An expression that will be evaluated against the operation's output and the outcome of that expression will be stored in the target variable |  #[payload] | {nbsp}
+| Error Mappings a| Array of <<ErrorMapping>> |  Set of error mappings |  | {nbsp}
+|===
+
+=== Output
+
+[%autowidth.spread]
+|===
+| *Type* a| Any
+|===
+
+
+=== Throws
+
+* RESILIENCE:RETRIES_EXHAUSTED {nbsp}
+
+
+
+== Types
+[[ErrorMapping]]
+=== Error Mapping
+
+[cols=".^20%,.^25%,.^30%,.^15%,.^10%", options="header"]
+|======================
+| Field | Type | Description | Default Value | Required
+| Source a| Enumeration, one of:
+
+** ANY
+** REDELIVERY_EXHAUSTED
+** TRANSFORMATION
+** EXPRESSION
+** SECURITY
+** CLIENT_SECURITY
+** SERVER_SECURITY
+** ROUTING
+** CONNECTIVITY
+** RETRY_EXHAUSTED
+** TIMEOUT |  |  | 
+| Target a| String |  |  | x
+|======================
+

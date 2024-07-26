@@ -1,0 +1,28 @@
+id: Custom Message Logging
+name: Custom Message Logging
+description: Policy for logging messages
+category: Custom
+type: custom
+resourceLevelSupported: true
+encryptionSupported: false
+standalone: true
+requiredCharacteristics: []
+providedCharacteristics: []
+configuration:
+  - propertyName: beforeRequest
+    name: Before Calling API
+    type: boolean
+    optional: false
+    defaultValue: true
+  - propertyName: afterRequest
+    name: After Calling API
+    type: boolean
+    optional: false
+    defaultValue: false
+  - propertyName: message
+    name: Message
+    description: |
+      Mule Expression for extracting information from the message to log.
+      e.g. #[attributes.headers['id']]
+    type: expression
+    optional: false

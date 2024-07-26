@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module xmlns="http://www.mulesoft.org/schema/mule/module" xmlns:mule="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:tns="http://www.mulesoft.org/schema/mule/resilience"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="Resilience"
+	prefix="resilience" doc:description="This module relies in runtime provided components"
+	xsi:schemaLocation="            http://www.mulesoft.org/schema/mule/module http://www.mulesoft.org/schema/mule/module/current/mule-module.xsd            http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd                 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd      http://www.mulesoft.org/schema/mule/resilience http://www.mulesoft.org/schema/mule/resilience/current/mule-resilience.xsd">
+	<http:request-config name="httpRequestConfig" />
+	<operation name="is-endpoint-alive" doc:description="Check if the given URL can be reached by HTTP GET">
+		<parameters>
+			<parameter name="url" displayName="URL" type="string" />
+			<parameter name="responseTimeoutMillis" displayName="Response timeout in Milliseconds" type="number" defaultValue="#[2000]" />
+			<parameter name="maxRetries" displayName="Max Retries" type="number" defaultValue="#[3]" />
+			<parameter name="millisBetweenRetries" displayName="Milliseconds Between Retries" type="number" defaultValue="#[2000]" />
+		</parameters>
+		<mod:body xmlns:mod="http://www.mulesoft.org/schema/mule/module" xmlns="http://www.mulesoft.org/schema/mule/core">
+			<try>
+				<tns:retry-http url="#[vars.url]" responseTimeoutMillis="#[vars.responseTimeoutMillis]" maxRetries="#[vars.maxRetries]"
+					millisBetweenRetries="#[vars.millisBetweenRetries]" />
+				<set-payload value="#[true]" />
+				<error-handler>
+					<on-error-continue>
+						<set-payload value="#[false]" />
+					</on-error-continue>
+				</error-handler>
+			</try>
+		</mod:body>
+		<output type="boolean" />
+	</operation>
+	<operation name="retry-http" doc:description="Retry a HTTP GET request">
+		<parameters>
+			<parameter name="url" displayName="URL" type="string" />
+			<parameter name="responseTimeoutMillis" displayName="Response timeout in Milliseconds" type="number" defaultValue="#[2000]" />
+			<parameter name="maxRetries" displayName="Max Retries" type="number" defaultValue="#[3]" />
+			<parameter name="millisBetweenRetries" displayName="Milliseconds Between Retries" type="number" defaultValue="#[2000]" />
+		</parameters>
+		<mod:body xmlns:mod="http://www.mulesoft.org/schema/mule/module" xmlns="http://www.mulesoft.org/schema/mule/core">
+			<try>
+				<until-successful maxRetries="#[vars.maxRetries]" millisBetweenRetries="#[vars.millisBetweenRetries]">
+					<try>
+						<http:request method="GET" url="#[vars.url]" followRedirects="true" responseTimeout="#[vars.responseTimeoutMillis]">
+							<http:response-validator>
+								<http:success-status-code-validator values="200..299" />
+							</http:response-validator>
+						</http:request>
+					</try>
+				</until-successful>
+				<error-handler>
+					<on-error-continue>
+						<raise-error type="RESILIENCE:RETRIES_EXHAUSTED" description="Exhausted max retries" />
+					</on-error-continue>
+				</error-handler>
+			</try>
+		</mod:body>
+		<output type="any" />
+		<errors>
+			<error type="RETRIES_EXHAUSTED" />
+		</errors>
+	</operation>
+</module>

@@ -90,5 +90,21 @@
 			<scope>test</scope>
 		</dependency>
 		<!-- standard dependencies for all Mule apps - end -->
+		<dependency>
+			<groupId>org.mule.connectors</groupId>
+			<artifactId>mule-objectstore-connector</artifactId>
+			<classifier>mule-plugin</classifier>
+		</dependency>
+		<dependency>
+			<groupId>org.mule.modules</groupId>
+			<artifactId>mule-validation-module</artifactId>
+			<version>2.0.6</version>
+			<classifier>mule-plugin</classifier>
+		</dependency>
+		<dependency>
+			<groupId>${student.deployment.ap.orgid}</groupId>
+			<artifactId>resilience-mule-extension</artifactId>
+			<classifier>mule-plugin</classifier>
+		</dependency>
 	</dependencies>
 </project>
